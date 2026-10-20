@@ -6,7 +6,7 @@ const MIN = 60_000;
 const START = Date.parse("2026-10-20T18:00:00Z");
 function fixture(quantity = 12, minutesLeft = 90): PricingInput {
   return { now: START, product: { id: "sandwich", name: "Simulated sandwich", ordinaryPriceCents: 1000 },
-    batch: { id: "batch", productId: "sandwich", quantity, floorCents: 100, ceilingCents: 1000,
+    batch: { id: "batch", productId: "sandwich", quantity, referenceQuantity: 12, floorCents: 100, ceilingCents: 1000,
       saleStart: START, saleCutoff: START + minutesLeft * MIN, approved: true, paused: false, ended: false, lastReconciledAt: START } };
 }
 function evaluate(input: unknown) {
@@ -26,59 +26,70 @@ function advance(input: PricingInput, previous: Extract<PricingResult, { ok: tru
   return { ...input, now, batch: { ...input.batch, lastReconciledAt: now }, previous: previous.state };
 }
 
-test("all tier boundaries, including fractional minutes", () => {
-  for (const [quantity, discounts] of [[1, [0, 0, 10]], [5, [0, 0, 10]], [6, [0, 10, 20]], [10, [0, 10, 20]], [11, [10, 20, 30]]] as const) {
-    for (const [minutes, index] of [[61, 0], [60 + 1 / MIN, 0], [60, 1], [31, 1], [30 + 1 / MIN, 1], [30, 2], [1 / MIN, 2]] as const) {
-      assert.equal(evaluate(fixture(quantity, minutes)).priceCents, 1000 - discounts[index] * 10, `${quantity} units / ${minutes} minutes`);
-    }
+test("continuous formula at start, midpoint, near cutoff, and stock saturation", () => {
+  for (const [quantity, elapsed, expected] of [[12, 0, 1000], [12, 45, 850], [6, 45, 925], [24, 45, 850], [12, 90 - 1 / MIN, 700]]) {
+    const input = fixture(quantity!, 90);
+    input.now = START + elapsed! * MIN;
+    input.batch.lastReconciledAt = input.now;
+    assert.equal(evaluate(input).priceCents, expected);
   }
 });
 
-test("round cents precisely and enforce approved bounds", () => {
-  const input = fixture(12, 30);
-  input.product.ordinaryPriceCents = 1005;
-  assert.equal(evaluate(input).priceCents, 704);
-  input.batch.floorCents = 800;
-  assert.equal(evaluate(input).priceCents, 800);
+test("round half cents upward, preserve large amounts, and enforce bounds", () => {
+  const input = fixture(12, 60);
+  input.now += 30 * MIN;
+  input.batch.lastReconciledAt = input.now;
+  input.product.ordinaryPriceCents = 1010;
+  input.batch.ceilingCents = 2000;
+  assert.equal(evaluate(input).priceCents, 859); // 858.5 cents
+  input.batch.floorCents = 900;
+  const bounded = evaluate(input);
+  assert.equal(bounded.priceCents, 900);
+  assert.match(bounded.explanation, /Adjusted to approved price bounds/);
   input.batch.floorCents = 100;
   input.batch.ceilingCents = 600;
   assert.equal(evaluate(input).priceCents, 600);
-  input.batch.quantity = 1;
-  input.batch.saleCutoff = START + 90 * MIN;
-  input.batch.ceilingCents = 2000;
-  assert.equal(evaluate(input).priceCents, 1005);
-  input.product.ordinaryPriceCents = Number.MAX_SAFE_INTEGER;
   input.batch.ceilingCents = Number.MAX_SAFE_INTEGER;
+  input.product.ordinaryPriceCents = Number.MAX_SAFE_INTEGER;
+  input.batch.referenceQuantity = Number.MAX_SAFE_INTEGER;
+  input.batch.quantity = Number.MAX_SAFE_INTEGER;
+  assert.equal(evaluate(input).priceCents, 7656119366529842);
+  input.now = START;
+  input.batch.lastReconciledAt = START;
   assert.equal(evaluate(input).priceCents, Number.MAX_SAFE_INTEGER);
+  input.product.ordinaryPriceCents = 1000;
+  input.config = { ...DEFAULT_CONFIG, maxDiscountPercent: 0 };
+  assert.equal(evaluate(input).priceCents, 1000);
 });
 
 test("first eligibility, aligned rounds, retention, recovery and skipped rounds", () => {
   let input = fixture(12, 120);
   input.now += 3 * MIN;
   let result = evaluate(input);
-  assert.equal(result.priceCents, 900);
+  assert.equal(result.priceCents, 993);
   assert.equal(result.priceVersion, 1);
   assert.equal(result.change?.oldPriceCents, null);
   assert.equal(result.nextRoundAt, START + 10 * MIN);
   input = advance(input, result, 6);
   input.batch.quantity = 1;
   result = evaluate(input);
-  assert.equal(result.priceCents, 900);
+  assert.equal(result.priceCents, 993);
   assert.equal(result.change, null);
   input = advance(input, result, 1);
   result = evaluate(input);
-  assert.equal(result.priceCents, 1000);
+  assert.equal(result.priceCents, 998);
   assert.equal(result.priceVersion, 2);
   assert.equal(result.triggerCrash, false);
   input = advance(input, result, 90);
   result = evaluate(input);
-  assert.equal(result.priceCents, 900);
+  assert.equal(result.priceCents, 979);
   assert.equal(result.priceVersion, 3);
   assert.equal(result.state.pricedRound, 10);
 });
 
 test("unchanged rounds preserve version and change timestamp", () => {
   const input = fixture();
+  input.config = { ...DEFAULT_CONFIG, maxDiscountPercent: 0 };
   const first = evaluate(input);
   const second = evaluate(advance(input, first, 10));
   assert.equal(second.priceVersion, first.priceVersion);
@@ -126,6 +137,8 @@ test("cutoff is exclusive and no round is scheduled at or past it", () => {
 
 test("resuming within the same round recalculates immediately", () => {
   const input = fixture();
+  input.now += 45 * MIN;
+  input.batch.lastReconciledAt = input.now;
   const first = evaluate(input);
   input.previous = first.state;
   input.batch.paused = true;
@@ -135,7 +148,7 @@ test("resuming within the same round recalculates immediately", () => {
   input.batch.paused = false;
   input.batch.quantity = 1;
   const resumed = evaluate(input);
-  assert.equal(resumed.priceCents, 1000);
+  assert.equal(resumed.priceCents, 988);
   assert.equal(resumed.priceVersion, 2);
 });
 
@@ -143,7 +156,7 @@ test("crash signals require a markdown, trigger at the threshold, and do not rep
   const input = fixture(1, 60);
   const first = evaluate(input);
   assert.equal(first.triggerCrash, false);
-  const next = advance(input, first, 10);
+  const next = advance(input, first, 40);
   next.batch.quantity = 12;
   const crash = evaluate(next);
   assert.equal(crash.priceCents, 800);
@@ -153,28 +166,37 @@ test("crash signals require a markdown, trigger at the threshold, and do not rep
   assert.equal(evaluate(advance(next, crash, 10)).triggerCrash, false);
 });
 
-test("change records explain their full inputs", () => {
-  const input = fixture(12, 25);
+test("change records explain their full formula inputs", () => {
+  const input = fixture(6, 60);
+  input.now += 30 * MIN;
+  input.batch.lastReconciledAt = input.now;
   const result = evaluate(input);
   assert.deepEqual(result.change, {
-    productId: "sandwich", batchId: "batch", version: 1, timestamp: START,
-    oldPriceCents: null, newPriceCents: 700, quantity: 12, remainingMs: 25 * MIN,
-    tier: { stock: "high", time: "near", discountPercent: 30 },
+    productId: "sandwich", batchId: "batch", version: 1, timestamp: input.now,
+    oldPriceCents: null, newPriceCents: 925, quantity: 6, remainingMs: 30 * MIN,
+    formula: { id: "continuous-v1", referenceQuantity: 12, stockPressure: 0.5, windowProgress: 0.5, maxDiscountPercent: 30, discountPercent: 7.5 },
     bounds: { floorCents: 100, approvedCeilingCents: 1000, ordinaryPriceCents: 1000, effectiveCeilingCents: 1000 },
-    explanation: "12 units remain with 25 minutes left: 30% surplus discount.",
+    explanation: "6 units remain against a reference of 12, halfway through the sale window: approximately 7.5% calculated discount.",
   });
 });
 
-test("configuration and approved bound changes apply immediately", () => {
-  const input = fixture();
+test("formula settings, reference quantity and bounds apply immediately", () => {
+  const input = fixture(12, 60);
+  input.now += 30 * MIN;
+  input.batch.lastReconciledAt = input.now;
   input.previous = evaluate(input).state;
   input.batch.floorCents = 950;
   assert.equal(evaluate(input).priceCents, 950);
   input.batch.floorCents = 100;
-  input.config = { ...DEFAULT_CONFIG, roundDurationMs: 5 * MIN, stockThresholds: [20, 30] };
+  input.batch.referenceQuantity = 24;
+  assert.equal(evaluate(input).priceCents, 925);
+  input.batch.referenceQuantity = 12;
+  input.config = { ...DEFAULT_CONFIG, maxDiscountPercent: 60, roundDurationMs: 5 * MIN };
   const result = evaluate(input);
-  assert.equal(result.priceCents, 1000);
-  assert.equal(result.nextRoundAt, START + 5 * MIN);
+  assert.equal(result.priceCents, 700);
+  assert.equal(result.nextRoundAt, START + 35 * MIN);
+  assert.equal(result.priceVersion, 2);
+  assert.equal(evaluate({ ...input, previous: result.state }).change, null);
 });
 
 test("structured errors cover missing, fractional, negative, and inverted inputs", () => {
@@ -199,8 +221,8 @@ test("structured errors cover missing, fractional, negative, and inverted inputs
 });
 
 test("malformed configuration and previous state are rejected", () => {
-  for (const config of [null, {}, { ...DEFAULT_CONFIG, roundDurationMs: 0 }, { ...DEFAULT_CONFIG, stockThresholds: [10, 5] },
-    { ...DEFAULT_CONFIG, timeThresholdsMs: [30, 30] }, { ...DEFAULT_CONFIG, discountsPercent: [[-1]] }, { ...DEFAULT_CONFIG, crashThresholdPercent: 101 }]) {
+  for (const config of [null, {}, { ...DEFAULT_CONFIG, roundDurationMs: 0 }, { ...DEFAULT_CONFIG, maxDiscountPercent: -1 },
+    { ...DEFAULT_CONFIG, maxDiscountPercent: 101 }, { ...DEFAULT_CONFIG, maxDiscountPercent: 1.5 }, { ...DEFAULT_CONFIG, crashThresholdPercent: 101 }]) {
     const result = evaluatePricing({ ...fixture(), config });
     assert.equal(result.ok, false);
   }
@@ -242,7 +264,7 @@ test("fresh reconciliation resumes stale offers immediately without resetting ro
   assert.equal(resumed.nextRoundAt, START + 10 * MIN);
 });
 
-test("zero prices and full discounts remain valid without spurious crash signals", () => {
+test("zero prices and maximum discounts are valid", () => {
   const input = fixture();
   input.product.ordinaryPriceCents = 0;
   input.batch.floorCents = 0;
@@ -250,17 +272,79 @@ test("zero prices and full discounts remain valid without spurious crash signals
   assert.equal(first.priceCents, 0);
   assert.equal(evaluate(advance(input, first, 10)).triggerCrash, false);
   input.product.ordinaryPriceCents = 1000;
-  input.config = { ...DEFAULT_CONFIG, discountsPercent: [[100, 100, 100], [100, 100, 100], [100, 100, 100]] };
+  input.config = { ...DEFAULT_CONFIG, maxDiscountPercent: 100 };
+  assert.equal(evaluate(input).priceCents, 1000);
+  input.now += 45 * MIN;
+  input.batch.lastReconciledAt = input.now;
+  assert.equal(evaluate(input).priceCents, 500);
+  input.now = input.batch.saleCutoff - 1;
+  input.batch.lastReconciledAt = input.now;
   assert.equal(evaluate(input).priceCents, 0);
+  input.now += 1;
+  assert.equal(evaluate(input).priceCents, null);
 });
 
 test("markdowns below the configured crash percentage do not trigger animation", () => {
   const input = fixture(1, 90);
   const first = evaluate(input);
-  const next = advance(input, first, 10);
+  const next = advance(input, first, 30);
   next.batch.quantity = 12;
   assert.equal(evaluate(next).priceCents, 900);
   assert.equal(evaluate(next).triggerCrash, false);
   next.config = { ...DEFAULT_CONFIG, crashThresholdPercent: 10 };
   assert.equal(evaluate(next).triggerCrash, true);
+});
+
+test("invalid references and maximum discounts return structured errors", () => {
+  const input = fixture();
+  for (const value of [undefined, null, 0, -1, 1.5, NaN, Infinity, Number.MAX_SAFE_INTEGER + 1, "12"]) {
+    invalid({ ...input, batch: { ...input.batch, referenceQuantity: value } }, "batch.referenceQuantity");
+  }
+  for (const value of [undefined, null, -1, 101, 1.5, NaN, Infinity, "30"]) {
+    invalid({ ...input, config: { ...DEFAULT_CONFIG, maxDiscountPercent: value } }, "config.maxDiscountPercent");
+  }
+});
+
+test("prices are monotonic in time and stock, including clamps and rounding plateaus", () => {
+  for (const [floor, ceiling] of [[0, 1000], [900, 950]]) {
+    for (const quantity of [1, 6, 12, 24]) {
+      let previousPrice = Infinity;
+      for (let elapsed = 0; elapsed < 90; elapsed++) {
+        const input = fixture(quantity, 90);
+        input.now += elapsed * MIN;
+        input.batch.lastReconciledAt = input.now;
+        input.batch.floorCents = floor!;
+        input.batch.ceilingCents = ceiling!;
+        const price = evaluate(input).priceCents!;
+        assert.ok(price <= previousPrice);
+        assert.ok(price >= floor! && price <= ceiling!);
+        previousPrice = price;
+      }
+    }
+    for (const elapsed of [0, 15, 45, 89]) {
+      let previousPrice = Infinity;
+      for (let quantity = 1; quantity <= 30; quantity++) {
+        const input = fixture(quantity, 90);
+        input.now += elapsed * MIN;
+        input.batch.lastReconciledAt = input.now;
+        input.batch.floorCents = floor!;
+        input.batch.ceilingCents = ceiling!;
+        const price = evaluate(input).priceCents!;
+        assert.ok(price <= previousPrice);
+        previousPrice = price;
+      }
+    }
+  }
+});
+
+test("display rounding does not control monetary rounding", () => {
+  const input = fixture(1, 60);
+  input.batch.referenceQuantity = 7;
+  input.product.ordinaryPriceCents = 1_000_000;
+  input.batch.ceilingCents = 1_000_000;
+  input.now += 30 * MIN;
+  input.batch.lastReconciledAt = input.now;
+  const result = evaluate(input);
+  assert.match(result.explanation, /2.14% calculated discount/);
+  assert.equal(result.priceCents, 978571);
 });

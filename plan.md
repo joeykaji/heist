@@ -28,10 +28,10 @@ Build a Connections Cafe proof of concept: staff-approved surplus offers, a live
 
 ## 3. Pricing engine
 
-Implemented as a deterministic module in `src/pricing.ts`, with tests and a simulated demo; see `README.md`. The module returns explanations, animation signals, and audit records. The future application must schedule evaluations, render animations, and persist records. Recent sales rate remains optional and is not included.
+Implemented as a deterministic continuous-pricing module in `src/pricing.ts`, with exact cent rounding, a staff-defined reference quantity per batch, a configurable 30% default maximum discount, tests, and a simulated demo; see `README.md`. The module returns explanations, animation signals, and audit records. The future application must schedule evaluations, render animations, and persist records. Recent sales rate remains optional and is not included.
 
 - [x] Implement an explainable rule using remaining stock and time to the approved cutoff.
-- [x] Start with configurable surplus thresholds; treat recent sales rate as an optional input after the core rule works.
+- [x] Use configurable per-batch reference quantities and a continuous stock/time formula; treat recent sales rate as an optional input after the core rule works. Tiered pricing remains documented as an alternative only.
 - [x] Enforce approved floor ≤ current price ≤ ordinary price on every update.
 - [x] Reject missing, negative, or inverted price bounds and invalid sale windows.
 - [x] Refresh prices at round boundaries using the authoritative clock.

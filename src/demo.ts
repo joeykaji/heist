@@ -9,6 +9,7 @@ const products: Product[] = [
 ];
 const batches: Batch[] = products.map((product, index) => ({
   id: `${product.id}-demo`, productId: product.id, quantity: [12, 6, 3][index]!,
+  referenceQuantity: [12, 6, 3][index]!,
   floorCents: 200, ceilingCents: product.ordinaryPriceCents,
   saleStart: start, saleCutoff: start + [70, 60, 45][index]! * MIN,
   approved: true, paused: false, ended: false, lastReconciledAt: start,

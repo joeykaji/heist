@@ -9,6 +9,8 @@ export interface Batch {
   id: string;
   productId: string;
   quantity: number;
+  /** Fixed staff-defined stock scale; never automatically adjusted. */
+  referenceQuantity: number;
   floorCents: number;
   ceilingCents: number;
   saleStart: number;
@@ -22,28 +24,14 @@ export interface Batch {
 export interface PricingConfig {
   roundDurationMs: number;
   freshnessMs: number;
-  stockThresholds: readonly [number, number];
-  /** Ascending thresholds: near cutoff, then intermediate. */
-  timeThresholdsMs: readonly [number, number];
-  /** Rows: low/medium/high stock; columns: far/intermediate/near cutoff. */
-  discountsPercent: readonly [
-    readonly [number, number, number],
-    readonly [number, number, number],
-    readonly [number, number, number],
-  ];
+  maxDiscountPercent: number;
   crashThresholdPercent: number;
 }
 
 export const DEFAULT_CONFIG: PricingConfig = Object.freeze({
   roundDurationMs: 10 * 60_000,
   freshnessMs: 20 * 60_000,
-  stockThresholds: Object.freeze([5, 10] as const),
-  timeThresholdsMs: Object.freeze([30 * 60_000, 60 * 60_000] as const),
-  discountsPercent: Object.freeze([
-    Object.freeze([0, 0, 10] as const),
-    Object.freeze([0, 10, 20] as const),
-    Object.freeze([10, 20, 30] as const),
-  ] as const),
+  maxDiscountPercent: 30,
   crashThresholdPercent: 20,
 });
 
@@ -63,7 +51,7 @@ export interface PriceChange {
   newPriceCents: number;
   quantity: number;
   remainingMs: number;
-  tier: { stock: "low" | "medium" | "high"; time: "far" | "intermediate" | "near"; discountPercent: number };
+  formula: { id: "continuous-v1"; referenceQuantity: number; stockPressure: number; windowProgress: number; maxDiscountPercent: number; discountPercent: number };
   bounds: { floorCents: number; approvedCeilingCents: number; ordinaryPriceCents: number; effectiveCeilingCents: number };
   explanation: string;
 }
@@ -121,6 +109,7 @@ export function evaluatePricing(input: unknown): PricingResult {
     if (typeof value !== "string" || !value.trim()) issue(field as string, "required", "Expected a nonempty string.");
   }
   integer("product.ordinaryPriceCents", p.ordinaryPriceCents);
+  integer("batch.referenceQuantity", b.referenceQuantity, 1);
   for (const key of ["quantity", "floorCents", "ceilingCents"]) integer(`batch.${key}`, b[key]);
   for (const key of ["saleStart", "saleCutoff", "lastReconciledAt"]) timestamp(`batch.${key}`, b[key]);
   for (const key of ["approved", "paused", "ended"]) {
@@ -139,17 +128,7 @@ export function evaluatePricing(input: unknown): PricingResult {
   else {
     integer("config.roundDurationMs", c.roundDurationMs, 1);
     integer("config.freshnessMs", c.freshnessMs, 1);
-    for (const key of ["stockThresholds", "timeThresholdsMs"]) {
-      const thresholds = c[key];
-      if (!Array.isArray(thresholds) || thresholds.length !== 2 || !thresholds.every(v => validInt(v, 1)) || thresholds[0]! >= thresholds[1]!) {
-        issue(`config.${key}`, "invalid_thresholds", "Expected two strictly increasing positive integers.");
-      }
-    }
-    const discounts = c.discountsPercent;
-    if (!Array.isArray(discounts) || discounts.length !== 3 || !discounts.every(row =>
-      Array.isArray(row) && row.length === 3 && row.every(v => validInt(v) && v <= 100))) {
-      issue("config.discountsPercent", "invalid_discounts", "Expected a 3 by 3 matrix of integer percentages from 0 to 100.");
-    }
+    if (!validInt(c.maxDiscountPercent) || c.maxDiscountPercent > 100) issue("config.maxDiscountPercent", "invalid_discount", "Expected an integer percentage from 0 to 100.");
     if (!validInt(c.crashThresholdPercent, 1) || c.crashThresholdPercent > 100) issue("config.crashThresholdPercent", "invalid_threshold", "Expected an integer percentage from 1 to 100.");
   }
 
@@ -173,7 +152,7 @@ export function evaluatePricing(input: unknown): PricingResult {
   const { now, product, batch, previous } = input as unknown as PricingInput;
   const config = c as unknown as PricingConfig;
   const policyKey = JSON.stringify([product.ordinaryPriceCents, batch.floorCents, batch.ceilingCents,
-    batch.saleStart, batch.saleCutoff, config.roundDurationMs, config.stockThresholds, config.timeThresholdsMs, config.discountsPercent]);
+    batch.saleStart, batch.saleCutoff, config.roundDurationMs, "continuous-v1", config.maxDiscountPercent, batch.referenceQuantity]);
   const baseState: PricingState = {
     productId: product.id, batchId: batch.id, evaluatedAt: now, wasEligible: false,
     pricedRound: previous?.pricedRound ?? null, policyKey,
@@ -205,15 +184,22 @@ export function evaluatePricing(input: unknown): PricingResult {
   }
 
   const remainingMs = batch.saleCutoff - now;
-  const stockIndex = batch.quantity <= config.stockThresholds[0] ? 0 : batch.quantity <= config.stockThresholds[1] ? 1 : 2;
-  const timeIndex = remainingMs <= config.timeThresholdsMs[0] ? 2 : remainingMs <= config.timeThresholdsMs[1] ? 1 : 0;
-  const discountPercent = config.discountsPercent[stockIndex][timeIndex];
+  const elapsedMs = now - batch.saleStart;
+  const windowMs = batch.saleCutoff - batch.saleStart;
+  const cappedQuantity = Math.min(batch.quantity, batch.referenceQuantity);
+  const stockPressure = cappedQuantity / batch.referenceQuantity;
+  const windowProgress = elapsedMs / windowMs;
+  const discountPercent = config.maxDiscountPercent * stockPressure * windowProgress;
   const ceiling = Math.min(batch.ceilingCents, product.ordinaryPriceCents);
-  // Integer arithmetic preserves cent rounding even at the safe-integer boundary.
-  const discounted = Number((BigInt(product.ordinaryPriceCents) * BigInt(100 - discountPercent) + 50n) / 100n);
+  // Exact rational calculation: never use rounded display percentages for money.
+  const denominator = 100n * BigInt(batch.referenceQuantity) * BigInt(windowMs);
+  const discountNumerator = BigInt(config.maxDiscountPercent) * BigInt(cappedQuantity) * BigInt(elapsedMs);
+  const numerator = BigInt(product.ordinaryPriceCents) * (denominator - discountNumerator);
+  const discounted = Number((2n * numerator + denominator) / (2n * denominator));
   const priceCents = Math.max(batch.floorCents, Math.min(ceiling, discounted));
-  const minutes = Math.ceil(remainingMs / 60_000);
-  const explanation = `${batch.quantity} units remain with ${minutes} minutes left: ${discountPercent}% surplus discount.`
+  const formatPercent = (value: number) => Number(value.toFixed(2)).toString();
+  const progressText = elapsedMs * 2 === windowMs ? "halfway through" : `approximately ${formatPercent(windowProgress * 100)}% through`;
+  const explanation = `${batch.quantity} units remain against a reference of ${batch.referenceQuantity}, ${progressText} the sale window: approximately ${formatPercent(discountPercent)}% calculated discount.`
     + (priceCents !== discounted ? ` Adjusted to approved price bounds (${batch.floorCents}–${ceiling} cents).` : "");
   const old = previous?.lastPrice ?? null;
   const changed = old === null || old.priceCents !== priceCents;
@@ -222,7 +208,7 @@ export function evaluatePricing(input: unknown): PricingResult {
   const change: PriceChange | null = changed ? {
     productId: product.id, batchId: batch.id, version, timestamp: now,
     oldPriceCents: old?.priceCents ?? null, newPriceCents: priceCents, quantity: batch.quantity, remainingMs,
-    tier: { stock: (["low", "medium", "high"] as const)[stockIndex], time: (["far", "intermediate", "near"] as const)[timeIndex], discountPercent },
+    formula: { id: "continuous-v1", referenceQuantity: batch.referenceQuantity, stockPressure, windowProgress, maxDiscountPercent: config.maxDiscountPercent, discountPercent },
     bounds: { floorCents: batch.floorCents, approvedCeilingCents: batch.ceilingCents, ordinaryPriceCents: product.ordinaryPriceCents, effectiveCeilingCents: ceiling }, explanation,
   } : null;
   const triggerCrash = changed && old !== null && old.priceCents > 0 && priceCents < old.priceCents
