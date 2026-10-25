@@ -1,3 +1,4 @@
+import {DEFAULT_LOCATION,validateLocation} from './locations.mjs';
 const item=(id,symbol,name,category,base,image,kind)=>({id,symbol,name,category,base,image:'assets/'+image+'.webp',kind});
 export const CATALOG=[
  item('southwest','SWRP','South West Wrap','Breakfast Sandwiches',399,'wrap','wrap'),
@@ -32,9 +33,10 @@ const copy=s=>structuredClone(s),stamp=()=>new Date().toISOString();
 export const rawAvailable=b=>b.physical_units-b.reserved_units-b.protected_units-b.buffer_units;
 export function offerAvailable(s,b){if(s.settings?.menu[b.productId]?.enabled===false)return 0;const floor=candidatePrices(b,s.policy).floor;return (floor===null||b.current_cents>=floor)&&b.safe_and_approved&&b.checkout_supported&&b.cutoff-s.minute>b.fulfillment_buffer_minutes&&s.minute-b.observedAt<=s.policy.max_count_age_minutes?rawAvailable(b):0;}
 export const hoursFor=s=>s?.settings?.hours||{open:OPEN,close:CLOSE};
-function batch(product,i,quantity,minute,menu,cutoff){
+function batch(product,i,quantity,minute,menu,cutoff,settings){
+ const pricing=pricingFor(settings);
  if(menu)product={...product,base:menu.price};
- return {id:'batch-'+i,windowId:'batch-'+i+'-close',offerId:'CONN-'+product.symbol+'-'+i,location:'Connections Cafe',productId:product.id,label:product.symbol+' · Batch '+(i+1),original_cents:product.base,current_cents:product.base,physical_units:quantity,reference_units:Math.max(1,quantity),reserved_units:0,protected_units:0,buffer_units:0,fee_fraction:'0',sale_cost_cents:menu?.cost??20,order_fee_cents:0,min_unit_contribution_cents:25,merchant_floor_cents:menu?.floor??1,activation_cents:25,fulfillment_buffer_minutes:5,capacity_units:null,safe_and_approved:true,checkout_supported:true,surplus_eligible:true,demand_reviewed:true,economics_reviewed:true,markdowns_used:0,window_committed:false,cutoff,observedAt:minute,checkoutVersion:1,createdAt:minute,priceEvents:[{at:minute,price:product.base,version:1,operationId:'initial-'+i}],decision:null,terminalAt:null};
+ return {id:'batch-'+i,windowId:'batch-'+i+'-close',offerId:'CONN-'+product.symbol+'-'+i,location:settings?.location?.name||'Connections Cafe',productId:product.id,label:product.symbol+' · Batch '+(i+1),original_cents:product.base,current_cents:product.base,physical_units:quantity,reference_units:Math.max(1,quantity),reserved_units:0,protected_units:0,buffer_units:0,fee_fraction:String(pricing.feePercent/100),sale_cost_cents:menu?.cost??20,order_fee_cents:pricing.orderFee,min_unit_contribution_cents:pricing.contribution,merchant_floor_cents:menu?.floor??1,activation_cents:25,fulfillment_buffer_minutes:5,capacity_units:null,safe_and_approved:true,checkout_supported:true,surplus_eligible:true,demand_reviewed:true,economics_reviewed:true,markdowns_used:0,window_committed:false,cutoff,observedAt:minute,checkoutVersion:1,createdAt:minute,priceEvents:[{at:minute,price:product.base,version:1,operationId:'initial-'+i}],decision:null,terminalAt:null};
 }
 export function productView(s,id){
  const product=catalogFor(s).find(p=>p.id===id);if(!product)throw new Error('Unknown food.');
@@ -42,7 +44,7 @@ export function productView(s,id){
  const b= settingsFor(s).menu[id].enabled===false ? null : batches[0],base=b?.original_cents??settingsFor(s).menu[id].price,price=b?.current_cents??base;
  return {...product,base,quantity:settingsFor(s).menu[id].enabled===false?0:batches.reduce((n,b)=>n+offerAvailable(s,b),0),offerQuantity:b?offerAvailable(s,b):0,discount:100*(1-price/base),price,batchId:b?.id,offerId:b?.offerId,saving:base-price,priceAt:b?.priceEvents.at(-1).at,inventoryAt:b?.observedAt,index:100*price/base,change:b?.priceEvents.length>1?100*(price/b.priceEvents.at(-2).price-1):null};
 }
-export function trafficAt(s,minute=s.minute){const cfg=settingsFor(s),rush=Object.values(cfg.rushes).find(r=>minute>=r.at&&minute<r.at+r.duration);const multiplier=rush?.multiplier??1;return {inPerson:cfg.traffic.inPerson*multiplier,mobile:cfg.traffic.mobile*multiplier};}
+export function trafficAt(s,minute=s.minute){const cfg=settingsFor(s),{open,close}=hoursFor(s),rush=Object.values(cfg.rushes).find(r=>r.at>=open&&r.at+r.duration<=close-5&&minute>=r.at&&minute<r.at+r.duration);const multiplier=rush?.multiplier??1;return {inPerson:cfg.traffic.inPerson*multiplier,mobile:cfg.traffic.mobile*multiplier};}
 export function demand(s){if(s.minute>=hoursFor(s).close-5)return 0;const r=trafficAt(s);return r.inPerson+r.mobile;}
 function point(s){return {at:s.minute,stock:s.batches.reduce((n,b)=>n+offerAvailable(s,b),0),demand:demand(s)};}
 function finish(s){s.revision++;s.updatedAt=stamp();const p=point(s);if(s.history.at(-1)?.at===s.minute)s.history[s.history.length-1]=p;else s.history.push(p);s.history=s.history.slice(-601);return s;}
@@ -52,7 +54,7 @@ export function initialState(preset='deals',settings=null){
  const {open,close}=(settings||defaultSettings()).hours;
  const opening=preset==='opening',minute=opening?open:Math.max(open,close-120);
  const cfg=copy(settings||defaultSettings());
- let s={version:6,revision:0,minute,updatedAt:stamp(),surplusSold:0,sold:0,orders:{inPerson:0,mobile:0},revenue:0,discarded:0,transferred:0,retained:0,sequence:catalogFor(cfg).length,settings:cfg,preferences:{ticker:true},policy:{...DEFAULT_POLICY},promotion:null,history:[],batches:catalogFor(cfg).map((p,i)=>batch(p,i,settings?settings.menu[p.id].stock:opening?cfg.menu[p.id].stock:6+i%3,minute,cfg.menu[p.id],close)),events:[{text:opening?'Connections Cafe opens. Fresh stock at menu prices.':'Afternoon market opens. Three surplus offers confirmed.',kind:'status',at:minute}]};
+ let s={version:6,revision:0,minute,updatedAt:stamp(),surplusSold:0,sold:0,orders:{inPerson:0,mobile:0},revenue:0,discarded:0,transferred:0,retained:0,sequence:catalogFor(cfg).length,settings:cfg,preferences:{ticker:true},policy:policyFor(cfg),promotion:null,history:[],batches:catalogFor(cfg).map((p,i)=>batch(p,i,settings?settings.menu[p.id].stock:opening?cfg.menu[p.id].stock:6+i%3,minute,cfg.menu[p.id],close,cfg)),events:[{text:opening?(cfg.location?.name||'Connections Cafe')+' opens. Fresh stock at menu prices.':'Afternoon market opens. Three surplus offers confirmed.',kind:'status',at:minute}]};
  // Explicit fixture assumptions only; they are not evidence about the cafe.
  if(!settings){s.batches.find(b=>b.productId==='buffalo').protected_units=1;s.batches.find(b=>b.productId==='roast').buffer_units=1;s.batches.find(b=>b.productId==='southwest').reserved_units=1;}
  if(!opening)for(const b of s.batches){b.createdAt=open;b.priceEvents[0].at=open;}
@@ -123,7 +125,7 @@ export function restock(source,id,quantity=4){
  if(!Number.isInteger(quantity)||quantity<1||quantity>1000)throw new Error('Restock 1–1,000 fresh items.');
  const s=copy(source),p=catalogFor(s).find(p=>p.id===id);if(!p)throw new Error('Unknown food.');
  if(s.minute>=hoursFor(s).close-5)throw new Error('Fulfillment window is closed.');
- s.batches.push(batch(p,s.sequence++,quantity,s.minute,settingsFor(s).menu[id],hoursFor(s).close));event(s,p.symbol+' · '+quantity+' fresh items, new batch at '+money(settingsFor(s).menu[id].price)+'.','restock');return finish(s);
+ s.batches.push(batch(p,s.sequence++,quantity,s.minute,settingsFor(s).menu[id],hoursFor(s).close,settingsFor(s)));event(s,p.symbol+' · '+quantity+' fresh items, new batch at '+money(settingsFor(s).menu[id].price)+'.','restock');return finish(s);
 }
 export function observeStock(source){const s=copy(source);for(const b of s.batches)b.observedAt=s.minute;event(s,'Physical inventory reconciled in the simulator.','observation');return finish(s);}
 export function setAllocations(source,id,reserved,protectedUnits,buffer){
@@ -145,14 +147,14 @@ export function advance(source,minutes=1,{observe=true}={}){
   s.transferred+=b.protected_units;s.retained+=b.physical_units-b.protected_units;
   b.physical_units=0;b.reserved_units=0;b.protected_units=0;b.buffer_units=0;
  }
- return s.minute%30===0?repriceDynamic(finish(s)):finish(s);
+ return (s.minute-hoursFor(s).open)%pricingFor(s.settings).reviewMinutes===0?repriceDynamic(finish(s)):finish(s);
 }
 export function triggerEvent(source,kind,options={}){
  if(!['crash','combo','rush','rescue'].includes(kind))throw new Error('Unknown event.');
  let s=copy(source);if(s.minute>=hoursFor(s).close-5)throw new Error('Start a new day to run an event.');
  const cfg=settingsFor(s).deal;
  s.promotion={kind,title:options.title||(kind===cfg.kind?cfg.title:null)||({crash:'Bakery Stock Crash',combo:'Study Buddy',rush:'Lunch Rush',rescue:'Closing Rush'}[kind]),ids:options.ids||cfg.ids,category:options.category||cfg.category,rushType:options.rushType||'lunch',until:Math.min(hoursFor(s).close-5,s.minute+(options.duration||cfg.duration))};
- const messages={crash:'STOCK WATCH · Prices adjust at the next half-hour review.',combo:s.promotion.title+' · '+s.promotion.ids.map(id=>catalogFor(s).find(p=>p.id===id).name).join(' & ')+' at independently confirmed prices.',rush:'RUSH · Purchases can lift prices as stock falls.',rescue:'CLOSING RUSH · Prices follow the half-hour review schedule. Protected stock stays protected.'};
+ const messages={crash:'STOCK WATCH · Prices adjust at the next scheduled review.',combo:s.promotion.title+' · '+s.promotion.ids.map(id=>catalogFor(s).find(p=>p.id===id).name).join(' & ')+' at independently confirmed prices.',rush:'RUSH · Purchases can lift prices as stock falls.',rescue:'CLOSING RUSH · Prices follow the scheduled review. Protected stock stays protected.'};
  event(s,messages[kind],kind);s=finish(s);
 
  return s;
@@ -184,7 +186,7 @@ function scheduleFor(s){
 }
 function purchase(s,e){
  const cfg=settingsFor(s),foods=catalogFor(s).filter(p=>cfg.menu[p.id].enabled!==false);
- const r=Object.entries(cfg.rushes).find(([,r])=>e.at>r.at&&e.at<=r.at+r.duration)?.[0];
+ const {open,close}=hoursFor(s),r=Object.entries(cfg.rushes).find(([,r])=>r.at>=open&&r.at+r.duration<=close-5&&e.at>r.at&&e.at<=r.at+r.duration)?.[0];
  const preferred=foods.filter(p=>r==='breakfast'?['Breakfast Sandwiches','Bagels'].includes(p.category):r==='lunch'?p.category==='Lunch Sandwich':true);
  const pool=preferred.length?preferred:foods,offset=e.ordinal+(e.channel==='mobile'?3:0);
  const ordered=[...pool.slice(offset%pool.length),...pool.slice(0,offset%pool.length),...foods];
@@ -209,10 +211,15 @@ export function stepSimulation(source,minutes=5){
 export function snapshotAt(minute,settings=null){const {open,close}=(settings||defaultSettings()).hours;if(!Number.isInteger(minute)||minute<open||minute>close)throw new Error('Invalid time.');return stepSimulation(initialState('opening',settings),minute-open);}
 
 
-export function defaultSettings(){return {hours:{open:OPEN,close:CLOSE},foods:copy(CATALOG),menu:Object.fromEntries(CATALOG.map(p=>[p.id,{stock:24,price:p.base,floor:1,cost:20,enabled:true}])),traffic:{inPerson:12,mobile:8,speed:1},rushes:{breakfast:{at:480,multiplier:2,duration:60},lunch:{at:720,multiplier:2,duration:60},closing:{at:840,multiplier:.8,duration:55}},deal:{kind:'combo',title:'Sandwich & Muffin Pairing',duration:30,at:690,category:'Pastries',ids:['buffalo','blueberry']}};}
+export function defaultSettings(){return {location:{...DEFAULT_LOCATION},pricing:pricingFor(),hours:{open:OPEN,close:CLOSE},foods:copy(CATALOG),menu:Object.fromEntries(CATALOG.map(p=>[p.id,{stock:24,price:p.base,floor:1,cost:20,enabled:true}])),traffic:{inPerson:12,mobile:8,speed:1},rushes:{breakfast:{at:480,multiplier:2,duration:60},lunch:{at:720,multiplier:2,duration:60},closing:{at:840,multiplier:1.5,duration:55}},deal:{kind:'combo',title:'Sandwich & Muffin Pairing',duration:30,at:690,category:'Pastries',ids:['buffalo','blueberry']}};}
 export const settingsFor=s=>s.settings||defaultSettings();
+export function pricingFor(settings){const defaults={reviewMinutes:30,maxDiscount:45,maxStep:5,contribution:25,feePercent:0,orderFee:0};return Object.fromEntries(Object.entries(defaults).map(([key,value])=>[key,settings?.pricing?.[key]??value]));}
+function policyFor(settings){const p=pricingFor(settings);return {...DEFAULT_POLICY,max_discount:String(p.maxDiscount/100),discounts:DEFAULT_POLICY.discounts.filter(d=>Number(d)<=p.maxDiscount/100),max_adjustment:p.maxStep/100};}
+export function trafficPlan(s){const {open,close}=hoursFor(s);const times=new Set([open,close-5,close]);for(const r of Object.values(settingsFor(s).rushes)){if(r.at>=open&&r.at+r.duration<=close-5){times.add(r.at);times.add(r.at+r.duration);}}return [...times].sort((a,b)=>a-b).map(at=>({at,value:demand({...s,minute:at})}));}
 export function validateSettings(c){
  if(!c||!c.menu||!c.rushes||!c.deal)throw new Error('Cafe settings are incomplete.');
+ if(c.location)validateLocation(c.location);
+ const p=pricingFor(c);if(![15,30,60].includes(p.reviewMinutes)||!Number.isInteger(p.maxDiscount)||p.maxDiscount<0||p.maxDiscount>45||!Number.isInteger(p.maxStep)||p.maxStep<1||p.maxStep>5||!Number.isInteger(p.contribution)||p.contribution<0||p.contribution>10000||!Number.isFinite(p.feePercent)||p.feePercent<0||p.feePercent>50||!Number.isInteger(p.orderFee)||p.orderFee<0||p.orderFee>10000)throw new Error('Pricing needs a 15, 30, or 60 minute review, 0–45% maximum discount, 1–5% step, and nonnegative costs.');
  const h=c.hours;if(!h||!Number.isInteger(h.open)||!Number.isInteger(h.close)||h.open<0||h.close>1439||h.close-h.open<120)throw new Error('Choose same-day hours at least two hours apart.');
  if(!Array.isArray(c.foods)||c.foods.length<2||c.foods.length>80||new Set(c.foods.map(p=>p.id)).size!==c.foods.length||new Set(c.foods.map(p=>p.symbol)).size!==c.foods.length)throw new Error('Use a unique ID and ticker for each food (2–80 foods).');
  for(const p of c.foods){
@@ -232,7 +239,7 @@ export function receiveStock(source,id,quantity,price,floor,cost){
 }
 export function recountBatch(source,id,quantity){
  const s=copy(source),b=s.batches.find(b=>b.id===id);if(!b)throw new Error('Choose a batch.');
- if(!Number.isInteger(quantity)||quantity<0||quantity>500||quantity<b.reserved_units+b.protected_units+b.buffer_units)throw new Error('Count must cover reserved, protected and buffer units.');
+ if(!Number.isInteger(quantity)||quantity<0||quantity>1000||quantity<b.reserved_units+b.protected_units+b.buffer_units)throw new Error('Count must cover reserved, protected and buffer units.');
  const difference=quantity-b.physical_units;b.physical_units=quantity;b.observedAt=s.minute;
  if(rawAvailable(b)>0&&s.minute<b.cutoff-b.fulfillment_buffer_minutes)b.terminalAt=null;
  event(s,b.label+' recount: '+quantity+' physical units ('+(difference>=0?'+':'')+difference+'). Price history kept.','observation');return finish(s);
@@ -252,14 +259,14 @@ export function endDeal(source){const s=copy(source);s.promotion=null;event(s,'O
 
 // Preserve saved plans and price histories; upgrade old default traffic without silently losing owner edits.
 export function migrateState(legacy){
- if(validState(legacy)){const s=copy(legacy);for(const b of s.batches)b.reference_units??=Math.max(1,s.settings.menu[b.productId]?.stock??b.physical_units);return s;}
+ if(validState(legacy)){const s=copy(legacy);if(!s.settings.location){s.settings.location={...DEFAULT_LOCATION};s.settings.pricing=pricingFor();const r=s.settings.rushes.closing;if(r.at===840&&r.duration===55&&r.multiplier===.8)r.multiplier=1.5;}for(const b of s.batches)b.reference_units??=Math.max(1,s.settings.menu[b.productId]?.stock??b.physical_units);return s;}
  if(!legacy||![3,4,5].includes(legacy.version))return null;
  if(legacy.version===5){
   const s=copy(legacy);s.version=6;
   if(s.settings?.traffic?.inPerson===20&&s.settings.traffic.mobile===20)Object.assign(s.settings.traffic,{inPerson:12,mobile:8});
   if(/^last[- ]call/i.test(s.settings?.deal?.title||''))s.settings.deal.title='Closing Rush';
   if(s.promotion?.kind==='rescue')s.promotion.title='Closing Rush';
-  return validState(s)?s:null;
+  return validState(s)?migrateState(s):null;
  }
  try{
   const s=copy(legacy),defaults=defaultSettings(),cfg=s.settings;

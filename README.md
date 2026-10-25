@@ -3,7 +3,7 @@
 Six connected browser views:
 - ?view=home — company goals, sustainability story and verified team LinkedIn links.
 - ?view=tv — 16:9 menu with the adjustable 3D case, shared time slider, customizable rushes, events and charts underneath. ?display=1 opens the clean TV display; legacy ?view=simulation links open Cafe Display.
-- ?view=exchange — Joey's Exchange TV with rotating prices, availability and price-history charts, using the same Cafe Desk settings and day as the other displays.
+- ?view=exchange — Joey's Exchange Display with rotating prices, availability and price-history charts, using the same Cafe Desk settings and day as the other displays.
 - ?view=mobile — scrollable food menu, search, category sheet, deals, day playback, simulated basket and live alert bubbles below the preview.
 - ?view=sustainability — resource goals, demo food movement and future pilot measurement.
 - ?view=inventory — collapsible Cafe Desk sections for hours, editable foods and prices, fresh deliveries, recounts, pricing review, deals and customer traffic.
@@ -27,7 +27,7 @@ The demo checkout adapter automatically acknowledges scheduled adjustments; manu
 
 Offers require reviewed economics, approval, supported checkout and a fresh inventory count. Counts older than 30 minutes pause availability; new orders stop five minutes before cutoff. Server counts require staff reconciliation, while browser playback supplies synthetic observations. Restocking creates a separate fresh batch and reference quantity. At closing, protected units transfer and remaining stock is retained in the simulated ledger.
 
-Charts connect a reduced set of confirmed samples. They display at most 32 samples, grouped into half-hour buckets, while the exact history table retains every confirmed event. Exchange TV and mobile food cards include hourly price markers. Connecting segments illustrate the trend; checkout prices remain fixed between reviews. Existing saved histories are simplified for display without deleting events.
+Charts connect a reduced set of confirmed samples. They display at most 32 samples, grouped into half-hour buckets, while the exact history table retains every confirmed event. Exchange Display and mobile food cards include hourly price markers. Connecting segments illustrate the trend; checkout prices remain fixed between reviews. Existing saved histories are simplified for display without deleting events.
 
 The previous scenario optimizer remains in `src/domain/decide.mjs` and `dist/pricing.mjs` for compatibility and historical tests; it no longer controls the active demos. `npm run build:pricing` generates both engines. The earlier continuous TypeScript engine remains isolated under legacy scripts.
 
@@ -61,10 +61,16 @@ The shared flow uses synthetic products and economics, no real payments, and no 
 
 The Market route includes a market-wide confirmed-price trend chart: toggle dollars or percentage change from regular price, select a batch in its legend, or expand the exact price-event table. Each delivery retains its own batch history. Pending recommendations never enter the graph; lines stop at cutoff, count expiry, or staff withdrawal.
 
-## Secondary Exchange TV
+## Secondary Exchange Display
 
-From the homepage, choose **Exchange TV** in the navigation or beside Cafe Display’s TV launch button. `/?view=exchange` provides preview, previous/next page, pause rotation, and fullscreen controls. `/?display=exchange` opens the clean 16:9 screen. Enabled Cafe Desk foods rotate across pages of twelve every 15 seconds; reduced-motion preference starts rotation paused.
+From the homepage, choose **Exchange Display** in the navigation or beside Cafe Display’s TV launch button. `/?view=exchange` provides preview, previous/next page, pause rotation, and fullscreen controls. `/?display=exchange` opens the clean 16:9 screen. Enabled Cafe Desk foods rotate across pages of twelve every 15 seconds; reduced-motion preference starts rotation paused.
 
 This secondary TV shares the browser-local Cafe Desk/playback state, just like Cafe Display and Mobile Display. It shows confirmed batch prices, crossed-out original prices, available quantities, and small trend charts. Each chart is relative to that batch’s regular price. Fresh stock never joins an old batch’s line. Its countdown is for page rotation, not a promised price change. The server-backed `/market` session remains separate.
 
-Exchange TV’s simulation preview includes Play/Pause, Restart, a five-minute step, speed, and a day scrubber. These use the same replay engine as Cafe Display and Mobile Display; seeking rebuilds from the saved opening plan. Playback controls are hidden in standalone TV (`?display=exchange`) and fullscreen presentation.
+Exchange Display’s simulation preview includes Play/Pause, Restart, a five-minute step, speed, and a day scrubber. These use the same replay engine as Cafe Display and Mobile Display; seeking rebuilds from the saved opening plan. Playback controls are hidden in standalone TV (`?display=exchange`) and fullscreen presentation.
+
+## Location plans
+
+Cafe Desk supports up to 30 independent browser-local locations. Create a location from the default plan or copy the active plan, then set its name, address, hours, foods, stock, traffic, pricing rules, and deals. Each location has its own saved cafe day; links include its location ID. Existing Connections Cafe history is retained. Profiles are not synchronized between devices and are separate from the server-backed /staff session.
+
+Pricing Rules controls 15/30/60-minute reviews, a maximum discount up to 45%, a review step up to 5%, selling fees, and minimum contribution. Applying inventory, hours, traffic, or pricing replays the saved plan to the current time. Restart always pauses at opening. Default traffic is an illustrative 12 in-person and 8 mobile orders per hour, doubled at breakfast and lunch and increased to 1.5× for Closing Rush at 2 PM. The traffic graph shows the full planned schedule; actual purchases require available stock.

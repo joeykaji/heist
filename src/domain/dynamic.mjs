@@ -25,8 +25,10 @@ export function dynamicPrice(batch, policy = {}) {
  const pressure=Math.min(1,available/reference);
  const target=Math.max(floor,Math.min(batch.original_cents,new Decimal(batch.original_cents).times(new Decimal(1).minus(new Decimal(p.max_discount).times(progressExact).times(Decimal.min(1,new Decimal(available).div(reference))))).ceil().toNumber()));
  // Limit an individual adjustment to 5% of regular price, with at least a cent.
- const step=Math.max(1,Math.ceil(batch.original_cents*.05));
+ const adjustment=Number(p.max_adjustment??.05);
+ if(!Number.isFinite(adjustment)||adjustment<=0||adjustment>.05)throw new Error('Price adjustments must be greater than 0 and at most 5%.');
+ const step=Math.max(1,Math.ceil(batch.original_cents*adjustment));
  const price=Math.max(floor,Math.min(batch.original_cents,Math.max(batch.current_cents-step,Math.min(batch.current_cents+step,target))));
  const status=price<batch.current_cents?'MARKDOWN':price>batch.current_cents?'INCREASE':'HOLD';
- return {...result,status,price_cents:price,evaluation_completed:true,target_cents:target,stock_pressure:pressure,window_progress:progress,reason:`${available} of ${reference} reference units available; ${Math.round(progress*100)}% through the pricing window. Target ${(target/100).toFixed(2)}; adjustments limited to 5% of regular price.`,expected_baseline_leftovers:0};
+ return {...result,status,price_cents:price,evaluation_completed:true,target_cents:target,stock_pressure:pressure,window_progress:progress,reason:`${available} of ${reference} reference units available; ${Math.round(progress*100)}% through the pricing window. Target ${(target/100).toFixed(2)}; adjustments limited to ${Math.round(adjustment*100)}% of regular price.`,expected_baseline_leftovers:0};
 }

@@ -1,19 +1,25 @@
+import {LOCATION_KEY,DEFAULT_LOCATION,stateKey,locationInfo,readLocations,saveLocation} from './locations.mjs';
 import {chartSamples} from './price-history.mjs';
 import {createExchange,sparkline} from './exchange-tv.mjs';
-import {catalogFor,RUSH_NAMES,trafficAt,applyPlan,CATALOG,CATEGORIES,FEATURED,hoursFor,migrateState,money,simTime,initialState,validState,productView,offerAvailable,rawAvailable,sell,restock,evaluateBatch,executeDemoDecision,observeStock,setAllocations,demoScenarios,triggerEvent,comboView,buyCombo,basketQuote,applyTicker,stepSimulation,snapshotAt,demand,settingsFor,updateSettings,startPlannedDay,receiveStock,recountBatch,jumpToRush,endDeal} from './model.mjs';
+import {defaultSettings,pricingFor,trafficPlan,catalogFor,RUSH_NAMES,trafficAt,applyPlan,CATALOG,CATEGORIES,FEATURED,hoursFor,migrateState,money,simTime,initialState,validState,productView,offerAvailable,rawAvailable,sell,restock,evaluateBatch,executeDemoDecision,observeStock,setAllocations,demoScenarios,triggerEvent,comboView,buyCombo,basketQuote,applyTicker,stepSimulation,snapshotAt,demand,settingsFor,updateSettings,startPlannedDay,receiveStock,recountBatch,jumpToRush,endDeal} from './model.mjs';
 import {createCase} from './case.mjs';
-const $=id=>document.getElementById(id),KEY='marketbite-connections-v3',escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const $=id=>document.getElementById(id),escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const params=new URLSearchParams(location.search),displayOnly=['1','exchange'].includes(params.get('display'));
 let view=displayOnly?(params.get('display')==='exchange'?'exchange':'tv'):params.get('view')||'home',state,playing=false,timer=null,storageAvailable=true,page=0,tvCategory='featured',selectedBatch='batch-5',decision=null,basket={},dealsOnly=false,caseScene=null;
-function read(){try{const s=JSON.parse(localStorage.getItem(KEY));if(validState(s)&&s.batches.every(b=>b.reference_units!==undefined))return s;const migrated=migrateState(s);if(migrated){localStorage.setItem(KEY+'-before-merge-update',JSON.stringify(s));localStorage.setItem(KEY,JSON.stringify(migrated));return migrated;}}catch{storageAvailable=false;}return null;}
+let registry;
+try{registry=readLocations(localStorage);}catch{registry={version:1,activeId:'connections',locations:[{...DEFAULT_LOCATION}]};storageAvailable=false;}
+let locationId=registry.locations.some(l=>l.id===params.get('location'))?params.get('location'):registry.activeId,KEY=stateKey(locationId);
+function locationUrl(viewName,display=false){const q=new URLSearchParams(display?{display:viewName}:{view:viewName});q.set('location',locationId);return '?'+q;}
+function read(){try{const raw=localStorage.getItem(KEY),s=JSON.parse(raw);if(validState(s)&&s.settings.location&&s.batches.every(b=>b.reference_units!==undefined))return s;const migrated=migrateState(s);if(migrated){if(storageAvailable){localStorage.setItem(KEY+'-before-merge-update',JSON.stringify(s));localStorage.setItem(KEY,JSON.stringify(migrated));}return migrated;}if(raw!==null||locationId!=='connections')storageAvailable=false;}catch{storageAvailable=false;}return null;}
 state=read()||initialState('opening');
+if(!state.settings.location)state.settings.location={...DEFAULT_LOCATION};
 const exchange=createExchange();
 const foods=()=>catalogFor(state),onMenu=()=>foods().filter(p=>settingsFor(state).menu[p.id].enabled);
 const timeFormat=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',second:'2-digit'});
 const pct=n=>n.toFixed(1).replace(/\.0$/,'');
 let toastTimer;
 function toast(text){$('toast').textContent=text;$('toast').classList.add('show');clearTimeout(toastTimer);toastTimer=setTimeout(()=>$('toast').classList.remove('show'),4000);}
-function save(){try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;}}
+function save(){if(!storageAvailable)return;try{localStorage.setItem(KEY,JSON.stringify(state));}catch{storageAvailable=false;}}
 function commit(next){if(!validState(next))throw new Error('The update did not pass validation.');const prior=state;state=next;save();render(prior);}
 async function change(fn,{stop=true}={}){
  if(stop)pause();
@@ -25,13 +31,13 @@ function showView(next,push=true){
  view=next==='simulation'?'tv':['home','tv','exchange','mobile','sustainability','inventory'].includes(next)?next:'home';
  for(const id of ['home','tv','exchange','mobile','simulation','sustainability','inventory'])$('view-'+id).hidden=id==='simulation'?view!=='tv'||displayOnly:id!==view;
  document.querySelectorAll('.workspace-bar [data-view]').forEach(a=>{if(a.dataset.view===view)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
- if(push&&!displayOnly){history.pushState({},'', '?view='+view);window.scrollTo(0,0);}
+ if(push&&!displayOnly){history.pushState({},'',locationUrl(view));window.scrollTo(0,0);}
  if(view==='tv'&&!displayOnly){if(!caseScene)caseScene=createCase($('case-stage'));caseScene?.setState(state);caseScene?.resize();}
  if(view==='tv')resize();render();
 }
 function revealSection(id){const target=$(id);if(!target)return;for(let node=target;node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;target.scrollIntoView({behavior:'smooth',block:'start'});}
 document.querySelectorAll('[data-view]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();showView(a.dataset.view);if(a.hash)revealSection(a.hash.slice(1));}));
-window.addEventListener('popstate',()=>showView(new URLSearchParams(location.search).get('view')||'home',false));
+window.addEventListener('popstate',()=>{const p=new URLSearchParams(location.search),id=p.get('location');if(id&&id!==locationId){try{switchLocation(id);}catch(error){toast(error.message);}}showView(p.get('view')||'home',false);});
 if(displayOnly){document.body.classList.add(view==='exchange'?'exchange-only':'tv-only');$('tv-tools').hidden=false;if(view==='exchange')$('tv-tools').querySelector('a').href='?view=exchange';}
 function resize(){const r=$('tv-stage').getBoundingClientRect();if(!r.width)return;const scale=Math.min(r.width/1920,r.height/1080);$('tv').style.transform=document.fullscreenElement===$('tv-stage')?'translate(-50%,-50%) scale('+scale+')':'scale('+scale+')';}
 new ResizeObserver(resize).observe($('tv-stage'));window.addEventListener('resize',resize);document.addEventListener('fullscreenchange',resize);
@@ -49,7 +55,7 @@ function renderTV(previous){
  $('menu-status').textContent=state.minute>=hoursFor(state).close-5?'OFFERS ENDED':promotion?({crash:'STOCK CRASH',combo:promotion.title.toUpperCase(),rush:(RUSH_NAMES[promotion.rushType]||'Lunch Rush').toUpperCase(),rescue:'CLOSING RUSH'}[promotion.kind]):offers.length?'PRICE DROPS NOW':'FRESH IN THE CASE';
  const combo=comboView(state);
  $('menu-message').textContent=state.minute>=hoursFor(state).close-5?'Thanks for making every bite count.':promotion?.kind==='combo'&&combo.available?combo.products.map(p=>p.name).join(' & ')+' · '+money(combo.total)+' together':promotion?.kind==='rush'?'The '+(promotion.rushType||'lunch')+' rush is on. Prices follow the same live market.':offers.length?'Good food. A little less. A lot less waste.':'Sandwiches, bagels, pastries & something sweet.';
- $('day-clock').textContent=simTime(state.minute);$('tv-impact').textContent=state.surplusSold+' surplus items sold · demo';$('updated').textContent='Synced '+timeFormat.format(new Date(state.updatedAt));
+ $('day-clock').textContent=simTime(state.minute);$('updated').textContent='Synced '+timeFormat.format(new Date(state.updatedAt));
  $('sync-status').textContent=storageAvailable?'Connected across tabs in this browser':'Session only · browser storage unavailable';
  renderTicker();
 }
@@ -61,7 +67,7 @@ function renderTicker(){
  const signature=JSON.stringify([foods().map(p=>{const v=productView(state,p.id);return [v.price,v.quantity];}),state.promotion?.kind,state.events[0]?.text]);
  if(signature!==tickerSignature){
   tickerSignature=signature;
-  const content=onMenu().map(product=>{const p=productView(state,product.id);return '<div class="ticker-item"><span class="ticker-label"><b class="ticker-symbol">'+escape(p.symbol)+'</b><small>'+escape(p.name)+'</small></span><span class="ticker-price">'+(p.quantity?money(p.price):'UNAVAILABLE')+'</span>'+(p.quantity&&p.saving?'<span class="ticker-drop">↓ '+pct(p.discount)+'% · Was '+money(p.base)+'</span>':'')+'<span class="ticker-quantity">'+p.quantity+' AVAILABLE</span></div>';}).join('')+'<span class="ticker-item ticker-news">'+escape(state.events[0]?.text||'Taste more. Waste less.')+'</span>';
+  const content=onMenu().map(product=>{const p=productView(state,product.id);return '<div class="ticker-item"><span class="ticker-label"><b class="ticker-symbol">'+escape(p.symbol)+'</b><small>'+escape(p.name)+'</small></span><span class="ticker-price">'+(p.quantity?money(p.price):'Unavailable')+'</span>'+(p.quantity&&p.saving?'<span class="ticker-drop">↓ '+pct(p.discount)+'% · Was '+money(p.base)+'</span>':'')+'<span class="ticker-quantity">'+p.quantity+' AVAILABLE</span></div>';}).join('')+'<span class="ticker-item ticker-news">'+escape(state.events[0]?.text||'Taste more. Waste less.')+'</span>';
   $('ticker-track').innerHTML='<div class="ticker-group">'+content+'</div><div class="ticker-group" aria-hidden="true">'+content+'</div>';
  }
  $('ticker-track').classList.toggle('paused',!state.preferences.ticker);
@@ -107,7 +113,7 @@ function renderCharts(){
  $('chart-stock').textContent=state.history.at(-1).stock+' units';
  chart('stock-chart',state.history.map(e=>({at:e.at,value:e.stock})),Math.max(10,...state.history.map(e=>e.stock)),v=>Math.round(v),true);
  $('chart-demand').textContent=Math.round(demand(state))+' / Hour';
- chart('demand-chart',state.history.map(e=>({at:e.at,value:e.demand})),Math.max(40,...state.history.map(e=>e.demand)),v=>Math.round(v),false,state.minute,'#d2a329');
+ const planned=trafficPlan(state);chart('demand-chart',planned,Math.max(40,...planned.map(e=>e.value)),v=>Math.round(v),true,hoursFor(state).close,'#d2a329');
 }
 $('chart-batch').onchange=renderCharts;
 $('decision-batch').onchange=()=>{selectedBatch=$('decision-batch').value;decision=null;renderDecision();};
@@ -118,7 +124,7 @@ function renderDecision(){
  const b=state.batches.find(b=>b.id===$('decision-batch').value);if(!b)return;
  for(const [input,k] of [['reserved','reserved_units'],['protected','protected_units'],['buffer','buffer_units']])if(document.activeElement!==$(input))$(input).value=b[k];
  if(document.activeElement!==$('physical-count'))$('physical-count').value=b.physical_units;
- $('scenario-table').innerHTML='<p>Dynamic prices follow unallocated stock and time before closing. Sales can raise prices; unsold stock gradually lowers them. Evaluated every 30 simulated minutes. Each adjustment is capped at 5% of regular price.</p>';
+ const pricing=pricingFor(state.settings);$('scenario-table').textContent='Prices follow available stock and time before closing. Reviewed every '+pricing.reviewMinutes+' minutes, with a '+pricing.maxStep+'% step and a '+pricing.maxDiscount+'% maximum discount.';
  $('publish-price').hidden=true;$('fail-price').hidden=true;
  if(!decision){$('decision-result').innerHTML='<p>Physical '+b.physical_units+' − reserved '+b.reserved_units+' − protected '+b.protected_units+' − buffer '+b.buffer_units+' = '+rawAvailable(b)+' offer units. '+(b.window_committed?'Dynamic pricing is active.':'Prices update with time and purchases.')+'</p>';return;}
  const d=decision;
@@ -130,13 +136,15 @@ $('fail-price').onclick=()=>{const d=decision;if(d)change(s=>executeDemoDecision
 $('save-allocations').onclick=()=>change(s=>setAllocations(s,$('decision-batch').value,Number($('reserved').value),Number($('protected').value),Number($('buffer').value))).then(()=>{decision=null;renderDecision();});
 $('scenario-profile').onchange=()=>{decision=null;renderDecision();};
 function updatePlayback(){
- for(const id of ['pause-day','mobile-pause','exchange-play']){$(id).textContent=playing?'Pause':'Play';$(id).disabled=!playing&&state.minute>=hoursFor(state).close;}
+ for(const id of ['pause-day','mobile-pause','exchange-play','launch-market']){$(id).textContent=playing?'Pause':'Play';$(id).disabled=!playing&&state.minute>=hoursFor(state).close;}
+ if(!playing&&marketSelectionPending&&$('market-event').selectedOptions[0]?.disabled)$('launch-market').disabled=true;
  for(const id of ['run-day','mobile-replay','exchange-replay'])$(id).textContent='Restart';
  $('exchange-playback-status').textContent=playing?'Playing':state.minute>=hoursFor(state).close?'Day Complete':'Paused';
 }
 function pause(){clearInterval(timer);timer=null;playing=false;updatePlayback();}
 function start(){if(state.minute>=hoursFor(state).close)return;clearInterval(timer);playing=true;updatePlayback();timer=setInterval(async()=>{await change(s=>stepSimulation(s,5),{stop:false});if(state.minute>=hoursFor(state).close)pause();},60000/((hoursFor(state).close-hoursFor(state).open)/5)/settingsFor(state).traffic.speed);}
-$('run-day').onclick=()=>{basket={};decision=null;change(s=>startPlannedDay(s));};
+let marketSelectionPending=true;
+$('run-day').onclick=()=>{marketSelectionPending=true;basket={};decision=null;change(s=>startPlannedDay(s));};
 $('pause-day').onclick=()=>playing?pause():start();
 $('exchange-speed').onchange=async e=>{await change(s=>{const cfg=structuredClone(settingsFor(s));cfg.traffic.speed=Number(e.target.value);return updateSettings(s,cfg);});};
 $('exchange-play').onclick=$('pause-day').onclick;
@@ -147,12 +155,12 @@ $('exchange-slider').oninput=$('day-slider').oninput;
 function renderMarket(){
  const cfg=settingsFor(state),{open,close}=hoursFor(state),choice=$('market-event').value;
  for(const option of $('market-event').options){const r=cfg.rushes[option.value];if(r){option.textContent=RUSH_NAMES[option.value]+' · '+simTime(r.at);option.disabled=r.at<open||r.at+r.duration>close-5;}else option.textContent=({crash:'Stock Crash',combo:cfg.deal.kind==='combo'?cfg.deal.title:'Food Pairing',rescue:'Closing Rush'})[option.value];}
- $('launch-market').textContent=cfg.rushes[choice]?'Start Rush':'Launch Offer';$('launch-market').disabled=$('market-event').selectedOptions[0].disabled||(!cfg.rushes[choice]&&state.minute>=close-5);
+ $('launch-market').textContent=playing?'Pause':'Play';$('launch-market').disabled=!playing&&marketSelectionPending&&$('market-event').selectedOptions[0].disabled;
  const p=state.promotion,c=comboView(state),saved=cfg.deal.ids.map(id=>foods().find(f=>f.id===id).name).join(' & ');
  $('market-current').innerHTML=p?'<span class="market-state-label">ON THE MENU</span><strong>'+escape(p.title)+'</strong><span>'+(p.kind==='combo'?c.products.map(p=>escape(p.name)).join(' & ')+' · '+money(c.total)+' together · ':'')+'Until '+simTime(p.until)+'</span>':'<span class="market-state-label">SAVED OFFER</span><strong>'+escape(cfg.deal.title)+'</strong><span>'+escape(cfg.deal.kind==='combo'?saved:'Eligible surplus price review')+' · '+simTime(cfg.deal.at)+'</span>';
 }
-$('market-event').onchange=renderMarket;
-$('launch-market').onclick=async()=>{const type=$('market-event').value;let success=false;await change(s=>{const next=Object.hasOwn(RUSH_NAMES,type)?jumpToRush(s,type):triggerEvent(s,type);success=true;return next;});if(success&&Object.hasOwn(RUSH_NAMES,type)){decision=null;basket={};start();}};
+$('market-event').onchange=()=>{pause();marketSelectionPending=true;renderMarket();};
+$('launch-market').onclick=async()=>{if(playing){pause();return;}if(!marketSelectionPending){start();return;}const type=$('market-event').value;let success=false;await change(s=>{const next=Object.hasOwn(RUSH_NAMES,type)?jumpToRush(s,type):triggerEvent(s,type);success=true;return next;});if(success){marketSelectionPending=false;decision=null;basket={};start();}};
 function renderMobile(){
  const search=$('menu-search').value.trim().toLowerCase();
  $('mobile-open').textContent=state.minute<hoursFor(state).close-5?'Offers available · demo '+simTime(state.minute):'Offers ended for today';
@@ -163,7 +171,7 @@ function renderMobile(){
  $('clear-drops').hidden=!dealsOnly;
  renderAlerts(drops);
  const promo=state.promotion,c=comboView(state);
- $('mobile-promotion').innerHTML=promo?'<div class="mobile-deal"><strong>'+escape(promo.title||({crash:'The Bakery Stock Crash',combo:'Study Buddy Pairing',rush:'Rush Is On',rescue:'Closing Rush'}[promo.kind]))+'</strong><p>'+({crash:'Watch eligible bakery prices at each half-hour review. Catch your favorite while it lasts.',combo:c.products.map(p=>escape(p.name)).join(' & ')+' · '+money(c.total)+' together. Each item keeps its confirmed price.',rush:'The '+escape(promo.rushType||'lunch')+' rush is on. Prices follow the live market.',rescue:'Find eligible surplus offers before the selling window closes.'}[promo.kind])+'</p><p>Event ends at '+simTime(promo.until)+'</p>'+(promo.kind==='combo'?'<button id="add-combo" '+(!c.available?'disabled':'')+'>'+(c.available?'Add both to basket':'Pairing unavailable')+'</button>':'')+'</div>':'';
+ $('mobile-promotion').innerHTML=promo?'<div class="mobile-deal"><strong>'+escape(promo.title||({crash:'The Bakery Stock Crash',combo:'Study Buddy Pairing',rush:'Rush Is On',rescue:'Closing Rush'}[promo.kind]))+'</strong><p>'+({crash:'Watch eligible bakery prices at each scheduled review. Catch your favorite while it lasts.',combo:c.products.map(p=>escape(p.name)).join(' & ')+' · '+money(c.total)+' together. Each item keeps its confirmed price.',rush:'The '+escape(promo.rushType||'lunch')+' rush is on. Prices follow the live market.',rescue:'Find eligible surplus offers before the selling window closes.'}[promo.kind])+'</p><p>Event ends at '+simTime(promo.until)+'</p>'+(promo.kind==='combo'?'<button id="add-combo" '+(!c.available?'disabled':'')+'>'+(c.available?'Add both to basket':'Pairing unavailable')+'</button>':'')+'</div>':'';
  const matches=onMenu().filter(p=>(!search||(p.name+' '+escape(p.symbol)+' '+p.category).toLowerCase().includes(search))&&(!dealsOnly||(productView(state,p.id).saving>0&&productView(state,p.id).quantity>0)));
  $('mobile-menu').innerHTML=matches.length?CATEGORIES.map((category,i)=>{
  const products=matches.filter(p=>p.category===category);if(!products.length)return '';
@@ -208,7 +216,7 @@ $('basket-open').onclick=()=>{renderBasket();$('basket-dialog').showModal();};
 $('basket-items').onclick=e=>{const id=e.target.closest('[data-remove]')?.dataset.remove;if(!id)return;if(--basket[id]===0)delete basket[id];renderBasket();};
 $('checkout').onclick=async()=>{let success=false;await change(s=>{const result=basketQuote(s,basket);success=true;return result.state;});if(success){basket={};renderBasket();$('basket-dialog').close();toast('Demo purchase complete. Case inventory updated.');}};
 function render(previous){
- exchange.update(state);renderHours();renderSustainability();renderDesk();renderMarket();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
+ renderLocation();exchange.update(state);renderHours();renderSustainability();renderDesk();renderMarket();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
  $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;
  $('exchange-slider').value=state.minute;$('exchange-slider').setAttribute('aria-valuetext',simTime(state.minute));$('exchange-playback-time').textContent=simTime(state.minute);$('exchange-forward').disabled=state.minute>=hoursFor(state).close;$('exchange-speed').value=settingsFor(state).traffic.speed;
  $('total-stock').textContent=state.batches.reduce((n,b)=>n+offerAvailable(state,b),0);$('total-sold').textContent=state.sold;$('in-person-orders').textContent=state.orders.inPerson;$('mobile-orders').textContent=state.orders.mobile;updatePlayback();caseScene?.setState(state);
@@ -220,7 +228,7 @@ function syncLatest(){
  if(next.minute!==state.minute||next.revision<state.revision)pause();
  const old=state;state=next;decision=null;render(old);
 }
-window.addEventListener('storage',e=>{if(e.key===KEY)syncLatest();});
+window.addEventListener('storage',e=>{if(e.key===KEY)syncLatest();if(e.key===LOCATION_KEY){try{registry=readLocations(localStorage);renderLocation();}catch{toast('Location list could not be refreshed.');}}});
 window.addEventListener('focus',syncLatest);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncLatest();});
 let toolsTimer;if(displayOnly)window.addEventListener('pointermove',()=>{document.body.classList.add('show-tools');clearTimeout(toolsTimer);toolsTimer=setTimeout(()=>document.body.classList.remove('show-tools'),2500);});
@@ -270,16 +278,17 @@ function receiveDefaults(){const m=settingsFor(state).menu[$('receive-product').
 $('receive-product').onchange=receiveDefaults;
 $('receive-form').onsubmit=e=>{e.preventDefault();change(s=>{const next=receiveStock(s,$('receive-product').value,Number($('receive-quantity').value),cents($('receive-price').value),cents($('receive-floor').value),cents($('receive-cost').value));toast('Fresh batch received. Case and menus updated.');return next;});};
 $('recount-batch').onclick=()=>change(s=>recountBatch(s,$('decision-batch').value,Number($('physical-count').value))).then(()=>{decision=null;renderDecision();});
-let trafficDirty=false,dealDirty=false,formsSignature='';
+let trafficDirty=false,dealDirty=false,pricingDirty=false,formsSignature='';
 function renderDeskForms(cfg){
  const signature=JSON.stringify(cfg);if(signature===formsSignature)return;formsSignature=signature;
  for(const id of ['receive-product','deal-first','deal-second']){const prior=$(id).value;$(id).innerHTML=foods().map(p=>'<option value="'+p.id+'">'+escape(p.name)+'</option>').join('');if(foods().some(p=>p.id===prior))$(id).value=prior;}
  if(!trafficDirty){$('traffic-person').value=cfg.traffic.inPerson;$('traffic-mobile').value=cfg.traffic.mobile;$('speed').value=cfg.traffic.speed;for(const [type,r] of Object.entries(cfg.rushes)){$(type+'-time').value=clockInput(r.at);$(type+'-duration').value=r.duration;$(type+'-multiplier').value=r.multiplier;}}
  if(!dealDirty){const d=cfg.deal;$('deal-kind').value=d.kind;$('deal-title').value=d.title;$('deal-duration').value=d.duration;$('deal-time').value=clockInput(d.at);$('deal-first').value=d.ids[0];$('deal-second').value=d.ids[1];$('deal-category').value=d.category;dealFields();}
+ if(!pricingDirty)for(const [key,value] of Object.entries(pricingFor(cfg)))$('pricing-'+key).value=['contribution','orderFee'].includes(key)?(value/100).toFixed(2):value;
  receiveDefaults();
 }
 $('traffic-form').oninput=()=>{trafficDirty=true;};
-$('traffic-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=settingsCopy();cfg.traffic={inPerson:Number($('traffic-person').value),mobile:Number($('traffic-mobile').value),speed:Number($('speed').value)};for(const type of Object.keys(RUSH_NAMES))cfg.rushes[type]={at:minuteInput($(type+'-time').value),duration:Number($(type+'-duration').value),multiplier:Number($(type+'-multiplier').value)};const next=updateSettings(s,cfg);trafficDirty=false;formsSignature='';$('traffic-status').textContent='Simulation Applied';toast('Move the Market now uses these rushes and purchase rates.');return next;});};
+$('traffic-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=settingsCopy();cfg.traffic={inPerson:Number($('traffic-person').value),mobile:Number($('traffic-mobile').value),speed:Number($('speed').value)};for(const type of Object.keys(RUSH_NAMES))cfg.rushes[type]={at:minuteInput($(type+'-time').value),duration:Number($(type+'-duration').value),multiplier:Number($(type+'-multiplier').value)};const next=applyPlan(s,cfg);trafficDirty=false;formsSignature='';$('traffic-status').textContent='Simulation Applied';toast('Move the Market now uses these rushes and purchase rates.');return next;});};
 $('deal-form').oninput=()=>{dealDirty=true;};
 function dealFields(){const pair=$('deal-kind').value==='combo';$('pair-one-label').hidden=!pair;$('pair-two-label').hidden=!pair;$('deal-category-label').hidden=$('deal-kind').value!=='crash';}
 $('deal-kind').onchange=()=>{const k=$('deal-kind').value;$('deal-title').value={combo:'Study Buddy',crash:'Bakery Stock Crash',rescue:'Closing Rush'}[k];dealFields();};
@@ -291,41 +300,36 @@ $('end-deal').onclick=()=>change(s=>endDeal(s));
 $('mobile-replay').onclick=$('run-day').onclick;
 $('mobile-pause').onclick=$('pause-day').onclick;
 $('mobile-day-slider').oninput=$('day-slider').oninput;
+
+let locationFormSignature='',locationDirty=false;
+function renderLocation(){
+ const place=locationInfo(state.settings);document.title='MarketBite · '+place.name;
+ document.querySelectorAll('[data-location-name]').forEach(el=>el.textContent=place.name);
+ document.querySelectorAll('[data-location-caption]').forEach(el=>el.textContent=[place.caption,place.name].filter(Boolean).join(' · ').toUpperCase());
+ document.querySelectorAll('[data-location-address]').forEach(el=>el.textContent=place.address);
+ $('menu-search').placeholder='Search '+place.name;$('menu-search').setAttribute('aria-label','Search '+place.name);
+ const options=JSON.stringify(registry.locations);if($('location-select').dataset.options!==options){$('location-select').innerHTML=registry.locations.map(l=>'<option value="'+escape(l.id)+'">'+escape(l.name)+'</option>').join('');$('location-select').dataset.options=options;}$('location-select').value=locationId;
+ const signature=JSON.stringify(place);if(signature!==locationFormSignature&&!locationDirty){for(const key of ['name','address','caption'])$('location-'+key).value=place[key];locationFormSignature=signature;}
+ document.querySelectorAll('a[data-view],a[href^="?display="],.tv-tools a').forEach(a=>{const q=new URL(a.href).searchParams;q.set('location',locationId);a.href='?'+q+a.hash;});
+}
+function resetDrafts(){planDirty=false;hoursDirty=false;trafficDirty=false;dealDirty=false;pricingDirty=false;locationDirty=false;deskSignature='';hoursSignature='';formsSignature='';locationFormSignature='';tickerSignature='';marketSelectionPending=true;basket={};decision=null;page=0;selectedBatch='batch-0';}
+function switchLocation(id){
+ pause();if(!registry.locations.some(l=>l.id===id))throw new Error('Choose a saved location.');
+ const raw=localStorage.getItem(stateKey(id)),next=migrateState(raw?JSON.parse(raw):null);if(!next)throw new Error('This location’s saved day could not be loaded. Its data has been kept.');
+ const nextRegistry={...registry,activeId:id};localStorage.setItem(LOCATION_KEY,JSON.stringify(nextRegistry));registry=nextRegistry;locationId=id;KEY=stateKey(id);state=next;resetDrafts();history.replaceState({},'',locationUrl(view));render();
+}
+function hasDrafts(){return planDirty||hoursDirty||trafficDirty||dealDirty||pricingDirty||locationDirty;}
+$('location-select').onchange=e=>{if(hasDrafts()){toast('Apply your unsaved changes before switching locations.');e.target.value=locationId;return;}try{switchLocation(e.target.value);}catch(error){e.target.value=locationId;toast(error.message);}};
+$('location-form').oninput=()=>{locationDirty=true;};
+$('location-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=settingsCopy();cfg.location={id:locationId,...Object.fromEntries(['name','address','caption'].map(key=>[key,$('location-'+key).value.trim()]))};const next=updateSettings(s,cfg);registry=saveLocation(localStorage,registry,cfg.location,next);locationDirty=false;toast('Location details updated on every display.');return next;});};
+$('location-add-form').onsubmit=e=>{e.preventDefault();if(hasDrafts()){toast('Apply your unsaved changes before adding a location.');return;}pause();try{const cfg=$('location-template').value==='copy'?settingsCopy():defaultSettings();cfg.location={id:'cafe-'+crypto.randomUUID().slice(0,8),name:$('location-add-name').value.trim(),address:'',caption:''};const next=initialState('opening',cfg);registry=saveLocation(localStorage,registry,cfg.location,next);switchLocation(cfg.location.id);$('location-add-name').value='';toast('Location created with its own opening inventory and cafe day.');}catch(error){toast(error.message);}};
+$('pricing-form').oninput=()=>{pricingDirty=true;};
+$('pricing-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=settingsCopy();cfg.pricing=Object.fromEntries(Object.keys(pricingFor(cfg)).map(key=>[key,['contribution','orderFee'].includes(key)?cents($('pricing-'+key).value):Number($('pricing-'+key).value)]));const next=applyPlan(s,cfg);pricingDirty=false;formsSignature='';decision=null;basket={};$('pricing-status').textContent='Pricing Applied';toast('Pricing rules updated across this location’s displays.');return next;});};
+
 renderDeskForms(settingsFor(state));
 clock();setInterval(clock,1000);if(!read())save();showView(view,false);
 
-// A small illustrative market, independent of the cafe's shared simulation.
-const miniFoods=[
- {name:'Buffalo Chicken',symbol:'BUFF',base:899,stock:12,prices:[899,849,799,749,699,729]},
- {name:'Blueberry Muffin',symbol:'BLUE',base:399,stock:18,prices:[399,379,349,329,299,319]},
- {name:'Turkey Club',symbol:'TCLB',base:949,stock:9,prices:[949,899,849,799,829,779]},
- {name:'Chocolate Cookie',symbol:'CHOC',base:299,stock:22,prices:[299,279,259,239,219,229]}
-];
-let miniTick=0,miniPaused=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
-const miniNews=['Surplus meets a better price.','Prices ease as surplus becomes available.','A better deal brings the next bite closer.','More meals sold. Less food left behind.','Demand picks up. Prices adjust with it.','Small price moves. A bigger opportunity.'];
-function renderMiniMarket(){
- const step=miniTick%6;
- $('mini-market-time').textContent=simTime(720+step*15);
- $('mini-market-news').textContent=miniNews[step];
- const ticker=miniFoods.map(food=>{const price=food.prices[step],up=price>food.prices[Math.max(0,step-1)];return food.symbol+' <'+(up?'em':'b')+'>'+(up?'▲':'▼')+' '+money(price)+'</'+(up?'em':'b')+'> &nbsp; ';}).join('');
- document.querySelector('.mini-market-ticker>div').innerHTML=ticker+ticker;
- $('mini-market-rows').innerHTML=miniFoods.map(food=>{
-  const price=food.prices[step],previous=food.prices[Math.max(0,step-1)],change=price-previous;
-  const history=food.prices.slice(0,step+1),x=i=>6+i*21.6,y=p=>64-(p/food.base)*48;
-  let path='M'+x(0)+' '+y(history[0]);
-  history.slice(1).forEach((p,i)=>{path+=' H'+x(i+1)+' V'+y(p);});
-  if(step===0)path+=' H24';
-  return '<article class="mini-market-row"><div><strong>'+food.name+'</strong><small>'+food.symbol+' · '+(food.stock-step)+' available</small></div><div class="mini-market-price"><strong>'+money(price)+'</strong><small class="'+(change>0?'mini-market-rise':'')+'">'+(change===0?'Opening price':(change>0?'↑ ':'↓ ')+money(Math.abs(change)))+'</small></div><div class="mini-market-chart"><svg viewBox="0 0 120 74" role="img" aria-label="'+food.name+' illustrative price history"><path class="mini-grid" d="M6 16H114 M6 40H114 M6 64H114"/><path class="mini-line" d="'+path+'"/><circle cx="'+(step?x(step):24)+'" cy="'+y(price)+'" r="3"/></svg></div></article>';
- }).join('');
- $('mini-market-pause').textContent=miniPaused?'Play':'Pause';
- $('mini-market-pause').setAttribute('aria-pressed',String(miniPaused));
- $('mini-market-pause').setAttribute('aria-label',miniPaused?'Play miniature exchange':'Pause miniature exchange');
-}
-$('mini-market-pause').onclick=()=>{miniPaused=!miniPaused;renderMiniMarket();};
-renderMiniMarket();
-setInterval(()=>{if(miniPaused||document.hidden||$('view-home').hidden)return;miniTick++;renderMiniMarket();},4000);
-
-// The sandwich story can pause independently of the exchange preview.
+// The sandwich story can pause independently of the cafe simulation.
 $('journey-pause').onclick=()=>{
  const paused=$('bite-journey').classList.toggle('journey-paused');
  $('journey-pause').textContent=paused?'Play':'Pause';

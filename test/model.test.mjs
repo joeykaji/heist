@@ -102,8 +102,8 @@ test('illustrative cafe hours deliver 12 in-person and 8 mobile purchases, with 
  const normal=snapshotAt(480,cfg);assert.deepEqual(normal.orders,{inPerson:12,mobile:8});
  const breakfast=snapshotAt(540,cfg);assert.equal(breakfast.orders.inPerson-normal.orders.inPerson,24);assert.equal(breakfast.orders.mobile-normal.orders.mobile,16);
  const beforeLunch=snapshotAt(720,cfg),lunch=snapshotAt(780,cfg);assert.equal(lunch.orders.inPerson-beforeLunch.orders.inPerson,24);assert.equal(lunch.orders.mobile-beforeLunch.orders.mobile,16);
- const closing=snapshotAt(840,cfg),last=snapshotAt(894,cfg);assert.equal(last.orders.inPerson-closing.orders.inPerson,8);assert.equal(last.orders.mobile-closing.orders.mobile,5);
- assert.ok(Math.abs(trafficAt(normal,840).inPerson-9.6)<1e-8);assert.equal(trafficAt(normal,840).mobile,6.4);
+ const closing=snapshotAt(840,cfg),last=snapshotAt(894,cfg);assert.equal(last.orders.inPerson-closing.orders.inPerson,16);assert.equal(last.orders.mobile-closing.orders.mobile,10);
+ assert.equal(trafficAt(normal,840).inPerson,18);assert.equal(trafficAt(normal,840).mobile,12);
 });
 test('custom traffic controls actual orders and never sells more than available',()=>{
  const cfg=defaultSettings();cfg.traffic={inPerson:30,mobile:45,speed:2};
