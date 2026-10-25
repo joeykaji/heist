@@ -1,4 +1,4 @@
-import {productView} from './model.mjs';
+import {productView,catalogFor} from './model.mjs';
 export function createCase(stage){
 const status=document.getElementById('case-loading');
 if(!window.THREE){status.textContent='The 3D renderer could not load.';return null;}
@@ -120,34 +120,53 @@ function breakfast(type){
 rows.forEach((types,level)=>{
  for(const side of [-1,1])rounded(display,3.23,.035,1.98,side*1.82,levels[level]+.018,0,trayMat,.012);
  columns.forEach((x,col)=>{
-  const type=types[col%3];
-  for(const z of [-.75,-.25,.25,.75]){
-   const item=level===0?sandwich(type):level===1?breakfast(type):type==='chocolate-pastry'?chocolatePastry():muffin(type);
-   item.scale.setScalar(.78);item.position.set(x,levels[level]+.052,z);if(z<0)item.rotation.y+=.09;item.userData.food=type;
+  for(const [depth,z] of [-.75,-.25,.25,.75].entries()){
+   const item=new T.Group();
+   item.scale.setScalar(.78);item.position.set(x,levels[level]+.052,z);if(z<0)item.rotation.y+=.09;item.userData.slot=level*3+col%3;item.userData.ordinal=(col<3?0:4)+depth;
    display.add(item);foods.push(item);
   }
  });
 });
-const mapping={turkey:'buffalo',caprese:'roast',chicken:'southwest',veggie:'veggie','turkey-roll':'turkey','breakfast-bagel':'bacon','chocolate-pastry':'chocolate',blueberry:'blueberry','chocolate-muffin':'double'};
-const ordinals={};foods.forEach(o=>{o.userData.productId=mapping[o.userData.food];o.userData.ordinal=ordinals[o.userData.productId]||0;ordinals[o.userData.productId]=(ordinals[o.userData.productId]||0)+1;o.userData.base=o.position.clone();o.userData.target=true;o.userData.progress=1;});
+const preferred=['buffalo','roast','southwest','veggie','turkey','bacon','chocolate','blueberry','double'],templates=new Map();
+function foodTemplate(p){
+ const key=p.kind+':'+p.image+':'+p.category;if(templates.has(key))return templates.get(key);
+ let item;
+ if(p.kind==='bagel'&&p.category==='Breakfast Sandwiches')item=breakfast('breakfast-bagel');
+ else if(p.kind==='bagel'){item=new T.Group();const ring=mesh(item,new T.TorusGeometry(.25,.105,10,24),goldLight,0,.12,0);ring.rotation.x=Math.PI/2;}
+ else if(p.kind==='muffin')item=muffin(p.image.includes('double')?'chocolate-muffin':p.image.includes('blueberry')?'blueberry':'banana');
+ else if(p.kind==='croissant')item=p.image.includes('chocolate')?chocolatePastry():croissant();
+ else if(p.kind==='danish')item=cinnamonSwirl();
+ else if(p.kind==='doughnut'){item=new T.Group();const ring=mesh(item,new T.TorusGeometry(.25,.11,10,24),goldLight,0,.12,0);ring.rotation.x=Math.PI/2;}
+ else if(p.category==='Breakfast Sandwiches'&&p.kind!=='wrap')item=breakfast(p.image.includes('bagel')?'breakfast-bagel':p.id==='veggie'?'veggie':'turkey-roll');
+ else item=sandwich(p.id==='roast'?'turkey':p.id==='veggie'?'caprese':'chicken');
+ templates.set(key,item);return item;
+}
+foods.forEach(o=>{o.userData.base=o.position.clone();o.userData.target=true;o.userData.progress=1;});
 let yaw=.21,pitch=.16,visible=true,last=0,currentState=null,drag=null;
 function setState(s){
- currentState=s;let shown=0,total=0;
- for(const id of Object.values(mapping))total+=productView(s,id).quantity;
- for(const o of foods){const target=o.userData.ordinal<Math.min(8,productView(s,o.userData.productId).quantity);if(target!==o.userData.target){o.userData.target=target;o.userData.progress=0;}if(target)shown++;}
- document.getElementById('case-caption').textContent=shown+' displayed units · '+total+' available across these 9 foods. Up to 8 per food are shown; additional units remain in back stock.';
- document.getElementById('case-legend').innerHTML=Object.values(mapping).map(id=>{const p=productView(s,id);return '<span>'+p.symbol+' '+p.quantity+'</span>';}).join('');
+ const previous=currentState;currentState=s;let shown=0,total=0;
+ const menu=catalogFor(s).filter(p=>s.settings.menu[p.id].enabled),priority=[...(s.promotion?.kind==='combo'?s.promotion.ids:[]),...preferred];
+ const ordered=[...priority.map(id=>menu.find(p=>p.id===id)).filter(Boolean),...menu].filter((p,i,a)=>a.findIndex(f=>f.id===p.id)===i);
+ const isBakery=p=>['Pastries','Bakery'].includes(p.category),savory=ordered.filter(p=>!isBakery(p)).slice(0,6),bakery=ordered.filter(isBakery).slice(0,3),slots=[...Array.from({length:6},(_,i)=>savory[i]),...Array.from({length:3},(_,i)=>bakery[i])];
+ for(const p of slots.filter(Boolean))total+=productView(s,p.id).quantity;
+ for(const o of foods){const p=slots[o.userData.slot],key=p?p.id+':'+p.kind+':'+p.image+':'+p.category:'';
+  if(key!==o.userData.model){o.clear();if(p)o.add(foodTemplate(p).clone(true));o.userData.model=key;o.userData.productId=p?.id;delete o.userData.saleMotion;}
+  const quantity=p?productView(s,p.id).quantity:0,target=o.userData.ordinal<Math.min(8,quantity);if(target!==o.userData.target){o.userData.target=target;o.userData.progress=0;}
+  if(previous&&p&&catalogFor(previous).some(f=>f.id===p.id)&&s.minute>=previous.minute&&s.sold>previous.sold&&target&&o.userData.ordinal===0&&productView(previous,p.id).quantity>quantity)o.userData.saleMotion=0;
+  if(target)shown++;}
+ document.getElementById('case-caption').textContent=shown+' displayed units · '+total+' available across these '+slots.filter(Boolean).length+' foods. Up to 8 per food are shown; additional units remain in back stock.';
+ const legend=document.getElementById('case-legend');legend.replaceChildren(...slots.filter(Boolean).map(food=>{const p=productView(s,food.id),label=document.createElement('span');label.textContent=p.symbol+' · '+p.quantity;label.title=p.name;return label;}));
 }
 function resize(){const w=stage.clientWidth,h=stage.clientHeight;if(!w||!h)return;renderer.setSize(w,h,false);const a=w/h,halfWidth=Math.max(4.3,2.75*a);camera.left=-halfWidth;camera.right=halfWidth;camera.top=halfWidth/a;camera.bottom=-halfWidth/a;camera.updateProjectionMatrix();}
 new ResizeObserver(resize).observe(stage);new IntersectionObserver(e=>visible=e[0].isIntersecting).observe(stage);
 renderer.domElement.addEventListener('pointerdown',e=>{drag={x:e.clientX,y:e.clientY};renderer.domElement.setPointerCapture(e.pointerId);});
-renderer.domElement.addEventListener('pointermove',e=>{if(!drag)return;yaw=T.MathUtils.clamp(yaw-(e.clientX-drag.x)*.005,-.78,.78);pitch=T.MathUtils.clamp(pitch+(e.clientY-drag.y)*.003,.04,.4);drag={x:e.clientX,y:e.clientY};document.getElementById('case-angle').value=yaw*180/Math.PI;});
+renderer.domElement.addEventListener('pointermove',e=>{if(!drag)return;yaw=T.MathUtils.clamp(yaw-(e.clientX-drag.x)*.005,-.78,.78);pitch=T.MathUtils.clamp(pitch+(e.clientY-drag.y)*.003,.04,.4);drag={x:e.clientX,y:e.clientY};});
 renderer.domElement.addEventListener('pointerup',()=>drag=null);renderer.domElement.addEventListener('pointercancel',()=>drag=null);
-document.getElementById('case-angle').addEventListener('input',e=>yaw=Number(e.target.value)*Math.PI/180);
-document.getElementById('case-reset').addEventListener('click',()=>{yaw=.21;pitch=.16;document.getElementById('case-angle').value=12;});
+document.getElementById('case-reset').addEventListener('click',()=>{yaw=.21;pitch=.16;});
 function render(time){requestAnimationFrame(render);const dt=Math.min((time-last)/1000,.08);last=time;if(!visible||document.hidden)return;
  for(const o of foods){const u=o.userData;u.progress=reducedMotion.matches?1:Math.min(1,u.progress+dt*2.4);o.position.copy(u.base);o.scale.setScalar(.78);o.visible=u.target||u.progress<1;
- if(u.progress<1){const t=u.target?1-u.progress:u.progress;o.position.y+=t*.65;o.position.z+=t*.55;o.scale.setScalar(.78*(1-t*.6));}}
+ if(u.progress<1){const t=u.target?1-u.progress:u.progress;o.position.y+=t*.65;o.position.z+=t*.55;o.scale.setScalar(.78*(1-t*.6));}
+ if(u.saleMotion!==undefined){u.saleMotion=reducedMotion.matches?1:Math.min(1,u.saleMotion+dt);const t=u.saleMotion<.5?u.saleMotion*2:(1-u.saleMotion)*2;o.position.y+=t*.65;o.position.z+=t*.7;o.scale.setScalar(.78*(1-t));if(u.saleMotion===1)delete u.saleMotion;}}
  camera.position.set(Math.sin(yaw)*13,2.13+Math.sin(pitch)*13,Math.cos(yaw)*13);camera.lookAt(0,2.13,0);renderer.render(scene,camera);
 }
 resize();requestAnimationFrame(render);return {setState,resize};
