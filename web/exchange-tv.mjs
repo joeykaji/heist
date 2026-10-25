@@ -5,7 +5,7 @@ export function sparkline(batch,state){
  if(!batch)return '<span class="exchange-no-history">No active batch</span>';
  if(batch.closed||(batch.terminalAt!=null&&batch.terminalAt<=state.minute)||offerAvailable(state,batch)<=0)return ''; 
  const end=Math.min(state.minute,batch.terminalAt??Infinity,batch.cutoff-batch.fulfillment_buffer_minutes,batch.observedAt+state.policy.max_count_age_minutes);
- const points=chartSamples(batch.priceEvents.filter(p=>p.at<=end)),start=points[0]?.at??end,span=Math.max(1,end-start),x=t=>6+(t-start)/span*168,y=p=>54-p/batch.original_cents*44;
+ const points=chartSamples(batch.priceEvents.filter(p=>p.at<=end)),start=points[0]?.at??end,span=Math.max(1,batch.cutoff-start),x=t=>6+(t-start)/span*168,y=p=>54-p/batch.original_cents*44;
  let path='';for(let i=0;i<points.length;i++){const p=points[i];path+=(i?' L':'M')+x(p.at)+' '+y(p.price)+(points[i+1]?'':' H'+x(end));}
  return '<svg viewBox="0 0 180 64" role="img" aria-label="'+esc(batch.label)+' confirmed price history"><path d="M6 10H174 M6 32H174 M6 54H174" class="exchange-grid"/><path d="'+path+'" class="exchange-line"/>'+hourlyPoints(batch.priceEvents.filter(p=>p.at<=end),end).map(p=>'<circle cx="'+x(p.at)+'" cy="'+y(p.price)+'" r="3"><title>'+money(p.price)+' at '+simTime(p.at)+'</title></circle>').join('')+'</svg>';
 }

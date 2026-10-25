@@ -23,3 +23,17 @@ test('available batches with no withdrawal time retain their graphs',()=>{
  const unavailable={...batch,physical_units:0,reserved_units:0,protected_units:0,buffer_units:0};
  assert.equal(sparkline(unavailable,state),'');
 });
+
+test('daily timeline keeps earlier points fixed as new hours appear',()=>{
+ const state=initialState();
+ const original=state.batches.find(b=>productView(state,b.productId).batchId===b.id);
+ const batch={...original,cutoff:900,observedAt:480,priceEvents:[{at:420,price:original.current_cents}]};
+ state.minute=480;
+ const first=sparkline(batch,state);
+ state.minute=540;batch.observedAt=540;
+ const later=sparkline(batch,state);
+ const xs=svg=>[...svg.matchAll(/<circle cx="([^"]+)"/g)].map(m=>Number(m[1]));
+ assert.deepEqual(xs(first),[6,27]);
+ assert.deepEqual(xs(later),[6,27,48]);
+ assert.ok(xs(later).at(-1)<174);
+});
