@@ -88,7 +88,7 @@ function batchOptions(){
  $(id).value=state.batches.some(b=>b.id===prior)?prior:state.batches[0].id;
  }
 }
-function chart(id,points,max,format,step=false,end=state.minute,color='#006838'){
+function chart(id,points,max,format,step=false,end=state.minute,color='#0f2d44'){
  const x=t=>45+(t-OPEN)/(CLOSE-OPEN)*330,y=v=>77-v/max*55;
  let d='';
  for(const [i,p] of points.entries()){d+=(i?'L':'M')+x(p.at)+' '+y(p.value)+' ';if(step&&i<points.length-1)d+='L'+x(points[i+1].at)+' '+y(p.value)+' ';}
@@ -128,7 +128,7 @@ $('publish-price').onclick=()=>{const d=decision;if(!d)return;change(s=>executeD
 $('fail-price').onclick=()=>{const d=decision;if(d)change(s=>executeDemoDecision(s,d.batchId,d,true,false,'failed-'+d.windowId));};
 $('save-allocations').onclick=()=>change(s=>setAllocations(s,$('decision-batch').value,Number($('reserved').value),Number($('protected').value),Number($('buffer').value))).then(()=>{decision=null;renderDecision();});
 $('scenario-profile').onchange=()=>{decision=null;renderDecision();};
-function updatePlayback(){for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).textContent=playing?'Pause':'Play';$('pause-day').disabled=!playing&&state.minute>=CLOSE;$('run-day').textContent=playing?'↻ Restart day':'▶ Replay day';}
+function updatePlayback(){for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).textContent=playing?'Pause':'Play';for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).disabled=!playing&&state.minute>=CLOSE;$('run-day').textContent=playing?'↻ Restart day':'▶ Replay day';}
 function pause(){clearInterval(timer);timer=null;playing=false;updatePlayback();}
 function start(){if(state.minute>=CLOSE)return;clearInterval(timer);playing=true;updatePlayback();timer=setInterval(async()=>{await change(s=>stepSimulation(s,5),{stop:false});if(state.minute>=CLOSE)pause();},500/Number($('speed').value));}
 $('run-day').onclick=()=>change(s=>startPlannedDay(s)).then(()=>{decision=null;start();});
@@ -145,19 +145,23 @@ function renderMobile(){
  const search=$('menu-search').value.trim().toLowerCase();
  $('mobile-open').textContent=state.minute<CLOSE-5?'Offers available · demo '+simTime(state.minute):'Offers ended for today';
  $('mobile-updated').textContent='Updated '+simTime(state.minute);
+ const drops=CATALOG.map(p=>productView(state,p.id)).filter(p=>p.quantity>0&&p.saving>0);
+ $('mobile-drops').hidden=!drops.length;
+ $('mobile-drops').innerHTML=drops.length?'<div class="mobile-drops-heading"><h3>Price drops now</h3><span>'+drops.length+' FOODS</span></div><p>'+drops.slice(0,2).map(p=>escape(p.name)+' · '+money(p.price)+' <s>'+money(p.base)+'</s>').join('<br>')+'</p><button id="show-price-drops">'+(dealsOnly?'Show the full menu':'See all '+drops.length+' price drops')+' →</button>':'';
  const promo=state.promotion,c=comboView(state);
  $('mobile-promotion').innerHTML=promo?'<div class="mobile-deal"><strong>'+escape(promo.title||({crash:'The Bakery Stock Crash',combo:'Study Buddy Pairing',rush:'Rush Is On',rescue:'Last-call Offers'}[promo.kind]))+'</strong><p>'+({crash:'Freshly confirmed savings on eligible bakery batches. Catch your favorite while it lasts.',combo:c.products.map(p=>escape(p.name)).join(' & ')+' · '+money(c.total)+' together. Each item keeps its confirmed price.',rush:'The '+escape(promo.rushType||'lunch')+' rush is on. Confirmed prices hold.',rescue:'Find eligible surplus offers before the selling window closes.'}[promo.kind])+'</p><p>Event ends at '+simTime(promo.until)+'</p>'+(promo.kind==='combo'?'<button id="add-combo" '+(!c.available?'disabled':'')+'>'+(c.available?'Add both to basket':'Pairing unavailable')+'</button>':'')+'</div>':'';
  const matches=CATALOG.filter(p=>(!search||(p.name+' '+p.symbol+' '+p.category).toLowerCase().includes(search))&&(!dealsOnly||(productView(state,p.id).saving>0&&productView(state,p.id).quantity>0)));
  $('mobile-menu').innerHTML=matches.length?CATEGORIES.map((category,i)=>{
  const products=matches.filter(p=>p.category===category);if(!products.length)return '';
  return '<section class="mobile-menu-section" id="mobile-category-'+i+'"><h3>'+category+'</h3>'+products.map(product=>{
- const p=productView(state,product.id);return '<article class="mobile-card '+(!p.quantity?'unavailable':'')+'"><div class="mobile-card-info"><span class="mobile-symbol">'+p.symbol+'</span><h4>'+escape(p.name)+'</h4><div class="mobile-price">'+(p.quantity?money(p.price):'Unavailable')+(p.quantity&&p.saving?'<s>'+money(p.base)+'</s>':'')+'</div>'+(p.quantity&&p.saving?'<div class="mobile-drop">↓ '+pct(p.discount)+'% · Save '+money(p.saving)+'</div>':'')+'<div class="mobile-quantity">'+(p.quantity?p.offerQuantity+' at this price · '+simTime(p.priceAt):'Check back for fresh stock')+'</div></div><div class="mobile-thumb"><img src="'+p.image+'" alt="'+escape(p.name)+'" loading="lazy"><button class="mobile-add" data-add="'+p.id+'" aria-label="Add '+escape(p.name)+'" '+(!p.quantity?'disabled':'')+'>+</button></div></article>';
+ const p=productView(state,product.id);return '<article class="mobile-card '+(!p.quantity?'unavailable':p.saving?'discounted':'')+'"><div class="mobile-card-info"><span class="mobile-symbol">'+p.symbol+'</span><h4>'+escape(p.name)+'</h4><div class="mobile-price">'+(p.quantity?money(p.price):'Unavailable')+(p.quantity&&p.saving?'<s>'+money(p.base)+'</s>':'')+'</div>'+(p.quantity&&p.saving?'<div class="mobile-drop">↓ '+pct(p.discount)+'% · Save '+money(p.saving)+'</div>':'')+'<div class="mobile-quantity">'+(p.quantity?p.offerQuantity+' at this price · '+simTime(p.priceAt):'Check back for fresh stock')+'</div></div><div class="mobile-thumb"><img src="'+p.image+'" alt="'+escape(p.name)+'" loading="lazy"><button class="mobile-add" data-add="'+p.id+'" aria-label="Add '+escape(p.name)+'" '+(!p.quantity?'disabled':'')+'>+</button></div></article>';
  }).join('')+'</section>';
  }).join(''):'<p class="empty-menu">No matching foods. Try another search or clear the price-drop filter.</p>';
  $('deals-only').setAttribute('aria-pressed',String(dealsOnly));renderBasket();
 }
 $('menu-search').oninput=renderMobile;
 $('deals-only').onclick=()=>{dealsOnly=!dealsOnly;renderMobile();};
+$('mobile-drops').onclick=e=>{if(e.target.closest('#show-price-drops')){dealsOnly=!dealsOnly;$('menu-search').value='';renderMobile();$('mobile-menu').scrollIntoView({behavior:'smooth',block:'start'});}};
 function add(id){const p=productView(state,id);if((basket[id]||0)>=p.quantity){toast('All available '+p.symbol+' units are already in your basket.');return;}basket[id]=(basket[id]||0)+1;renderBasket();toast(p.name+' added.');}
 $('mobile-menu').onclick=e=>{const b=e.target.closest('[data-add]');if(b)add(b.dataset.add);};
 $('mobile-promotion').onclick=e=>{if(e.target.id==='add-combo'){const c=comboView(state);if(c.available){for(const p of c.products)add(p.id);}}};
@@ -181,17 +185,26 @@ function render(previous){
  $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-live-time').textContent='DEMO / '+simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;
  $('total-stock').textContent=state.batches.reduce((n,b)=>n+offerAvailable(state,b),0);$('total-sold').textContent=state.sold;updatePlayback();caseScene?.setState(state);
 }
-window.addEventListener('storage',e=>{if(e.key!==KEY||!e.newValue)return;try{const next=JSON.parse(e.newValue);if(!validState(next))return;pause();const old=state;state=next;decision=null;render(old);}catch{}});
+function syncLatest(){
+ const next=read();if(!next||(next.revision===state.revision&&next.updatedAt===state.updatedAt))return;
+ // A purchase or price update at the current time must not stop the day playing in another tab.
+ // A different time or restarted run yields playback to that tab instead of advancing twice.
+ if(next.minute!==state.minute||next.revision<state.revision)pause();
+ const old=state;state=next;decision=null;render(old);
+}
+window.addEventListener('storage',e=>{if(e.key===KEY)syncLatest();});
+window.addEventListener('focus',syncLatest);
+document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncLatest();});
 let toolsTimer;if(displayOnly)window.addEventListener('pointermove',()=>{document.body.classList.add('show-tools');clearTimeout(toolsTimer);toolsTimer=setTimeout(()=>document.body.classList.remove('show-tools'),2500);});
-function clock(){const now=new Date();const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'long',month:'long',day:'numeric'}).formatToParts(now);const day=Number(parts.find(p=>p.type==='day').value),suffix=(day%100>=11&&day%100<=13)?'th':({1:'st',2:'nd',3:'rd'}[day%10]||'th');const date=parts.map(p=>p.value+(p.type==='day'?suffix:'')).join('');document.querySelectorAll('.live-date').forEach(el=>el.textContent=date);$('clock').textContent=timeFormat.format(now);$('clock').dateTime=now.toISOString();}
+function clock(){const now=new Date();$('clock').textContent=timeFormat.format(now);$('clock').dateTime=now.toISOString();}
 
 let deskSignature='',planDirty=false;
 const settingsCopy=()=>structuredClone(settingsFor(state));
 function renderHome(){
- $('home-quotes').innerHTML=FEATURED.map(id=>{const p=productView(state,id);return '<div class="quote-row"><span><b>'+p.symbol+'</b><small>'+escape(p.name)+'</small></span><strong>'+(p.quantity?money(p.price):'—')+'</strong><em>'+(p.quantity&&p.saving?'▼ '+pct(p.discount)+'%':'HOLD')+'</em></div>';}).join('');
+ $('home-quotes').innerHTML=FEATURED.map(id=>{const p=productView(state,id);return '<div class="quote-row"><span><b>'+p.symbol+'</b><small>'+escape(p.name)+'</small></span><strong>'+(p.quantity?money(p.price):'—')+'</strong><em>'+(p.quantity&&p.saving?'Save '+money(p.saving):'—')+'</em></div>';}).join('');
 }
 function renderDesk(){
- $('desk-time').textContent='DEMO MARKET / '+simTime(state.minute);
+ $('desk-time').textContent='DEMO TIME · '+simTime(state.minute);
  const cfg=settingsFor(state),signature=JSON.stringify(cfg);
  if(signature!==deskSignature&&!planDirty){
   deskSignature=signature;
@@ -232,4 +245,4 @@ $('mobile-day-slider').oninput=e=>$('mobile-demo-time').textContent=simTime(Numb
 $('mobile-day-slider').onchange=$('day-slider').onchange;
 const d=settingsFor(state).deal;$('deal-kind').value=d.kind;$('deal-title').value=d.title;$('deal-duration').value=d.duration;$('deal-first').value=d.ids[0];$('deal-second').value=d.ids[1];$('deal-category').value=d.category;
 dealFields();rushDefaults();receiveDefaults();
-clock();setInterval(clock,1000);save();showView(view,false);
+clock();setInterval(clock,1000);if(!read())save();showView(view,false);
