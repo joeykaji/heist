@@ -51,7 +51,7 @@ export function initialState(preset='deals',settings=null){
  const {open,close}=(settings||defaultSettings()).hours;
  const opening=preset==='opening',minute=opening?open:Math.max(open,close-120);
  const cfg=copy(settings||defaultSettings());
- let s={version:5,revision:0,minute,updatedAt:stamp(),surplusSold:0,sold:0,orders:{inPerson:0,mobile:0},revenue:0,discarded:0,transferred:0,retained:0,sequence:catalogFor(cfg).length,settings:cfg,preferences:{ticker:true},policy:{...DEFAULT_POLICY},promotion:null,history:[],batches:catalogFor(cfg).map((p,i)=>batch(p,i,settings?settings.menu[p.id].stock:opening?cfg.menu[p.id].stock:6+i%3,minute,cfg.menu[p.id],close)),events:[{text:opening?'Connections Cafe opens. Fresh stock at menu prices.':'Afternoon market opens. Three surplus offers confirmed.',kind:'status',at:minute}]};
+ let s={version:6,revision:0,minute,updatedAt:stamp(),surplusSold:0,sold:0,orders:{inPerson:0,mobile:0},revenue:0,discarded:0,transferred:0,retained:0,sequence:catalogFor(cfg).length,settings:cfg,preferences:{ticker:true},policy:{...DEFAULT_POLICY},promotion:null,history:[],batches:catalogFor(cfg).map((p,i)=>batch(p,i,settings?settings.menu[p.id].stock:opening?cfg.menu[p.id].stock:6+i%3,minute,cfg.menu[p.id],close)),events:[{text:opening?'Connections Cafe opens. Fresh stock at menu prices.':'Afternoon market opens. Three surplus offers confirmed.',kind:'status',at:minute}]};
  // Explicit fixture assumptions only; they are not evidence about the cafe.
  if(!settings){s.batches.find(b=>b.productId==='buffalo').protected_units=1;s.batches.find(b=>b.productId==='roast').buffer_units=1;s.batches.find(b=>b.productId==='southwest').reserved_units=1;}
  if(!opening)for(const b of s.batches){b.createdAt=open;b.priceEvents[0].at=open;}
@@ -61,7 +61,7 @@ export function initialState(preset='deals',settings=null){
 }
 export function validState(s){
  const {open,close}=hoursFor(s);
- if(!s||s.version!==5||!Number.isInteger(s.minute)||s.minute<open||s.minute>close||!Number.isInteger(s.revision)||s.revision<0||!Number.isFinite(Date.parse(s.updatedAt))||!Number.isInteger(s.sequence)||s.sequence<0||!s.policy||!s.preferences||typeof s.preferences.ticker!=='boolean'||!['sold','surplusSold','revenue','discarded','transferred','retained'].every(k=>Number.isSafeInteger(s[k])&&s[k]>=0)||s.surplusSold>s.sold||!s.orders||!['inPerson','mobile'].every(k=>Number.isSafeInteger(s.orders[k])&&s.orders[k]>=0)||s.orders.inPerson+s.orders.mobile>s.sold)return false;
+ if(!s||s.version!==6||!Number.isInteger(s.minute)||s.minute<open||s.minute>close||!Number.isInteger(s.revision)||s.revision<0||!Number.isFinite(Date.parse(s.updatedAt))||!Number.isInteger(s.sequence)||s.sequence<0||!s.policy||!s.preferences||typeof s.preferences.ticker!=='boolean'||!['sold','surplusSold','revenue','discarded','transferred','retained'].every(k=>Number.isSafeInteger(s[k])&&s[k]>=0)||s.surplusSold>s.sold||!s.orders||!['inPerson','mobile'].every(k=>Number.isSafeInteger(s.orders[k])&&s.orders[k]>=0)||s.orders.inPerson+s.orders.mobile>s.sold)return false;
  if(!Array.isArray(s.batches)||s.batches.length>500||new Set(s.batches.map(b=>b.id)).size!==s.batches.length)return false;
  try{
   validateSettings(s.settings);
@@ -140,8 +140,8 @@ export function triggerEvent(source,kind,options={}){
  if(!['crash','combo','rush','rescue'].includes(kind))throw new Error('Unknown event.');
  let s=copy(source);if(s.minute>=hoursFor(s).close-5)throw new Error('Start a new day to run an event.');
  const cfg=settingsFor(s).deal;
- s.promotion={kind,title:options.title||(kind===cfg.kind?cfg.title:null)||({crash:'Bakery Stock Crash',combo:'Study Buddy',rush:'Lunch Rush',rescue:'Last-call Offers'}[kind]),ids:options.ids||cfg.ids,category:options.category||cfg.category,rushType:options.rushType||'lunch',until:Math.min(hoursFor(s).close-5,s.minute+(options.duration||cfg.duration))};
- const messages={crash:'STOCK CRASH REVIEW · Eligible bakery batches evaluated against all scenario gates.',combo:s.promotion.title+' · '+s.promotion.ids.map(id=>catalogFor(s).find(p=>p.id===id).name).join(' & ')+' at independently confirmed prices.',rush:'RUSH · Customer arrivals rise; confirmed prices hold.',rescue:'LAST-CALL REVIEW · Evaluate remaining eligible batches once. Protected stock stays protected.'};
+ s.promotion={kind,title:options.title||(kind===cfg.kind?cfg.title:null)||({crash:'Bakery Stock Crash',combo:'Study Buddy',rush:'Lunch Rush',rescue:'Closing Rush'}[kind]),ids:options.ids||cfg.ids,category:options.category||cfg.category,rushType:options.rushType||'lunch',until:Math.min(hoursFor(s).close-5,s.minute+(options.duration||cfg.duration))};
+ const messages={crash:'STOCK CRASH REVIEW · Eligible bakery batches evaluated against all scenario gates.',combo:s.promotion.title+' · '+s.promotion.ids.map(id=>catalogFor(s).find(p=>p.id===id).name).join(' & ')+' at independently confirmed prices.',rush:'RUSH · Customer arrivals rise; confirmed prices hold.',rescue:'CLOSING RUSH · Evaluate remaining eligible batches once. Protected stock stays protected.'};
  event(s,messages[kind],kind);s=finish(s);
  if(kind==='crash'||kind==='rescue'){
   for(const b of [...s.batches])if(kind==='rescue'||(s.promotion.category==='all'?['Pastries','Bakery'].includes(catalogFor(s).find(p=>p.id===b.productId).category):catalogFor(s).find(p=>p.id===b.productId).category===s.promotion.category)){
@@ -160,8 +160,7 @@ function baseSchedule(s){
  return [
   {at:d.at,action:'event',kind:d.kind,options:{...d}},
   {at:review,action:'event',kind:'crash'},
-  ...catalogFor(s).filter(p=>!['Pastries','Bakery'].includes(p.category)).map(p=>({at:review+5,action:'review',id:p.id})),
-  {at:close-45,action:'event',kind:'rescue'}
+  ...catalogFor(s).filter(p=>!['Pastries','Bakery'].includes(p.category)).map(p=>({at:review+5,action:'review',id:p.id}))
  ].filter(e=>e.at>open&&e.at<close-5).sort((a,b)=>a.at-b.at);
 }
 function scheduleFor(s){
@@ -196,7 +195,7 @@ export function stepSimulation(source,minutes=5){
   s=advance(s,e.at-s.minute);
   if(e.action==='purchase')s=purchase(s,e);
   else if(e.action==='event')s=triggerEvent(s,e.kind,e.options||{});
-  else if(e.action==='rush')event(s,RUSH_NAMES[e.type]+' begins.','rush');
+  else if(e.action==='rush'){if(e.type==='closing')s=triggerEvent(s,'rescue',{title:RUSH_NAMES.closing,rushType:'closing',duration:settingsFor(s).rushes.closing.duration});else event(s,RUSH_NAMES[e.type]+' begins.','rush');}
   else if(e.action==='review')for(const b of s.batches.filter(b=>b.productId===e.id)){const r=evaluateBatch(s,b.id);if(r.evaluation_completed)s=executeDemoDecision(s,b.id,r,true,true,'day-'+b.windowId);}
  }
  return advance(s,until-s.minute);
@@ -204,7 +203,7 @@ export function stepSimulation(source,minutes=5){
 export function snapshotAt(minute,settings=null){const {open,close}=(settings||defaultSettings()).hours;if(!Number.isInteger(minute)||minute<open||minute>close)throw new Error('Invalid time.');return stepSimulation(initialState('opening',settings),minute-open);}
 
 
-export function defaultSettings(){return {hours:{open:OPEN,close:CLOSE},foods:copy(CATALOG),menu:Object.fromEntries(CATALOG.map(p=>[p.id,{stock:24,price:p.base,floor:1,cost:20,enabled:true}])),traffic:{inPerson:20,mobile:20,speed:1},rushes:{breakfast:{at:480,multiplier:2,duration:60},lunch:{at:720,multiplier:2,duration:60},closing:{at:840,multiplier:.8,duration:55}},deal:{kind:'combo',title:'Sandwich & Muffin Pairing',duration:30,at:690,category:'Pastries',ids:['buffalo','blueberry']}};}
+export function defaultSettings(){return {hours:{open:OPEN,close:CLOSE},foods:copy(CATALOG),menu:Object.fromEntries(CATALOG.map(p=>[p.id,{stock:24,price:p.base,floor:1,cost:20,enabled:true}])),traffic:{inPerson:12,mobile:8,speed:1},rushes:{breakfast:{at:480,multiplier:2,duration:60},lunch:{at:720,multiplier:2,duration:60},closing:{at:840,multiplier:.8,duration:55}},deal:{kind:'combo',title:'Sandwich & Muffin Pairing',duration:30,at:690,category:'Pastries',ids:['buffalo','blueberry']}};}
 export const settingsFor=s=>s.settings||defaultSettings();
 export function validateSettings(c){
  if(!c||!c.menu||!c.rushes||!c.deal)throw new Error('Cafe settings are incomplete.');
@@ -237,7 +236,7 @@ export function jumpToRush(source,type){
  const cfg=settingsFor(source),r=cfg.rushes[type];if(!Object.hasOwn(RUSH_NAMES,type)||!r)throw new Error('Choose a rush.');
  const {open,close}=hoursFor(source);if(r.at<open||r.at+r.duration>close-5)throw new Error('Set this rush within cafe hours, ending by '+simTime(close-5)+'.');
  const s=r.at<source.minute?snapshotAt(r.at,cfg):stepSimulation(source,r.at-source.minute);
- return triggerEvent(s,'rush',{title:RUSH_NAMES[type],rushType:type,duration:r.duration});
+ return triggerEvent(s,type==='closing'?'rescue':'rush',{title:RUSH_NAMES[type],rushType:type,duration:r.duration});
 }
 
 // Applying a menu plan rebuilds the same point in the day, so all views share its inventory and prices.
@@ -248,7 +247,14 @@ export function endDeal(source){const s=copy(source);s.promotion=null;event(s,'O
 // Preserve saved plans and price histories; upgrade old default traffic without silently losing owner edits.
 export function migrateState(legacy){
  if(validState(legacy))return legacy;
- if(!legacy||![3,4].includes(legacy.version))return null;
+ if(!legacy||![3,4,5].includes(legacy.version))return null;
+ if(legacy.version===5){
+  const s=copy(legacy);s.version=6;
+  if(s.settings?.traffic?.inPerson===20&&s.settings.traffic.mobile===20)Object.assign(s.settings.traffic,{inPerson:12,mobile:8});
+  if(/^last[- ]call/i.test(s.settings?.deal?.title||''))s.settings.deal.title='Closing Rush';
+  if(s.promotion?.kind==='rescue')s.promotion.title='Closing Rush';
+  return validState(s)?s:null;
+ }
  try{
   const s=copy(legacy),defaults=defaultSettings(),cfg=s.settings;
   if(!cfg||!Array.isArray(s.batches)||!Number.isInteger(s.minute))return null;
@@ -257,7 +263,7 @@ export function migrateState(legacy){
   for(const p of CATALOG){cfg.menu[p.id].enabled=true;if(cfg.menu[p.id].stock===8)cfg.menu[p.id].stock=24;}
   for(const type of ['breakfast','lunch']){const r=cfg.rushes[type],oldDefault=type==='breakfast'?12:20;cfg.rushes[type]={at:r.at,duration:r.orders===oldDefault?60:r.duration,multiplier:r.orders===oldDefault?2:Math.max(.1,Math.min(5,r.orders*60/r.duration/40))};}
   cfg.rushes.closing=defaults.rushes.closing;delete cfg.rushes.dinner;
-  cfg.deal.at=defaults.deal.at;s.version=5;s.orders={inPerson:s.sold,mobile:0};
+  cfg.deal.at=defaults.deal.at;s.version=6;s.orders={inPerson:s.sold,mobile:0};
   if(s.promotion?.rushType==='dinner')s.promotion.rushType='closing';
   for(const b of s.batches)b.label=cfg.foods.find(p=>p.id===b.productId)?.symbol+' · Batch '+(Number(b.id.replace('batch-',''))+1);
   if(!validState(s))return null;

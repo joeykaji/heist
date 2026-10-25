@@ -46,7 +46,7 @@ test('recounts retain committed pricing and cannot consume allocated stock',()=>
 test('custom rush jumps to its start and attempts configured arrivals across duration',()=>{
  const cfg=defaultSettings();cfg.rushes.breakfast={at:500,multiplier:3,duration:10};
  const start=jumpToRush(initialState('opening',cfg),'breakfast');assert.equal(start.minute,500);assert.equal(start.promotion.rushType,'breakfast');
- const end=stepSimulation(start,10);assert.equal(end.sold-start.sold,20);assert.equal(end.minute,510);assert.ok(validState(end));
+ const end=stepSimulation(start,10);assert.equal(end.sold-start.sold,10);assert.equal(end.minute,510);assert.ok(validState(end));
  const backwards=jumpToRush(initialState('deals',cfg),'breakfast');assert.equal(backwards.minute,500);assert.equal(backwards.sold,snapshotAt(500,cfg).sold);assert.throws(()=>jumpToRush(start,'unknown'));
 });
 
@@ -97,13 +97,13 @@ test('legacy saved cafe plan migrates to 7 AM–3 PM without losing custom price
  assert.equal(migrateState({...old,batches:[] ,minute:'bad'}),null);assert.equal(migrateState(null),null);
 });
 
-test('normal hours deliver 20 purchases per channel and rushes double both',()=>{
+test('illustrative cafe hours deliver 12 in-person and 8 mobile purchases, with double rush traffic',()=>{
  const cfg=defaultSettings();for(const m of Object.values(cfg.menu))m.stock=100;
- const normal=snapshotAt(480,cfg);assert.deepEqual(normal.orders,{inPerson:20,mobile:20});
- const breakfast=snapshotAt(540,cfg);assert.equal(breakfast.orders.inPerson-normal.orders.inPerson,40);assert.equal(breakfast.orders.mobile-normal.orders.mobile,40);
- const beforeLunch=snapshotAt(720,cfg),lunch=snapshotAt(780,cfg);assert.equal(lunch.orders.inPerson-beforeLunch.orders.inPerson,40);assert.equal(lunch.orders.mobile-beforeLunch.orders.mobile,40);
- const closing=snapshotAt(840,cfg),last=snapshotAt(894,cfg);for(const k of ['inPerson','mobile'])assert.ok(last.orders[k]-closing.orders[k]>=13&&last.orders[k]-closing.orders[k]<=15);
- assert.deepEqual(trafficAt(normal,840),{inPerson:16,mobile:16});
+ const normal=snapshotAt(480,cfg);assert.deepEqual(normal.orders,{inPerson:12,mobile:8});
+ const breakfast=snapshotAt(540,cfg);assert.equal(breakfast.orders.inPerson-normal.orders.inPerson,24);assert.equal(breakfast.orders.mobile-normal.orders.mobile,16);
+ const beforeLunch=snapshotAt(720,cfg),lunch=snapshotAt(780,cfg);assert.equal(lunch.orders.inPerson-beforeLunch.orders.inPerson,24);assert.equal(lunch.orders.mobile-beforeLunch.orders.mobile,16);
+ const closing=snapshotAt(840,cfg),last=snapshotAt(894,cfg);assert.equal(last.orders.inPerson-closing.orders.inPerson,8);assert.equal(last.orders.mobile-closing.orders.mobile,5);
+ assert.ok(Math.abs(trafficAt(normal,840).inPerson-9.6)<1e-8);assert.equal(trafficAt(normal,840).mobile,6.4);
 });
 test('custom traffic controls actual orders and never sells more than available',()=>{
  const cfg=defaultSettings();cfg.traffic={inPerson:30,mobile:45,speed:2};
@@ -124,5 +124,19 @@ test('a mobile pairing counts two items but only one mobile order',()=>{
 test('version 4 migration preserves the current run while adopting readable labels and new traffic',()=>{
  const cfg=defaultSettings(),old=initialState('deals',cfg);old.version=4;delete old.orders;delete old.settings.foods;delete old.settings.traffic;delete old.settings.deal.at;for(const m of Object.values(old.settings.menu)){delete m.enabled;m.stock=8;}
  old.settings.menu.southwest.price=450;old.settings.rushes={breakfast:{at:480,orders:12,duration:30},lunch:{at:720,orders:20,duration:30},dinner:{at:1020,orders:12,duration:30}};
- const next=migrateState(old);assert.ok(validState(next));assert.equal(next.minute,old.minute);assert.equal(next.settings.menu.southwest.price,450);assert.equal(next.settings.menu.southwest.stock,24);assert.deepEqual(next.settings.traffic,{inPerson:20,mobile:20,speed:1});assert.equal(next.settings.rushes.closing.at,840);assert.match(next.batches[0].label,/SWRP · Batch 1/);assert.equal(next.batches[5].current_cents,old.batches[5].current_cents);
+ const next=migrateState(old);assert.ok(validState(next));assert.equal(next.minute,old.minute);assert.equal(next.settings.menu.southwest.price,450);assert.equal(next.settings.menu.southwest.stock,24);assert.deepEqual(next.settings.traffic,{inPerson:12,mobile:8,speed:1});assert.equal(next.settings.rushes.closing.at,840);assert.match(next.batches[0].label,/SWRP · Batch 1/);assert.equal(next.batches[5].current_cents,old.batches[5].current_cents);
+});
+
+test('version 5 adjusts old default traffic but preserves custom rates, stock and price history',()=>{
+ const old=initialState('deals');old.version=5;old.settings.traffic={inPerson:20,mobile:20,speed:2};
+ const next=migrateState(old);assert.ok(validState(next));assert.deepEqual(next.settings.traffic,{inPerson:12,mobile:8,speed:2});assert.deepEqual(next.batches,old.batches);assert.equal(next.minute,old.minute);
+ old.settings.traffic={inPerson:17,mobile:11,speed:1};assert.deepEqual(migrateState(old).settings.traffic,old.settings.traffic);
+});
+
+test('Closing Rush runs one guarded review at the saved rush time and retains committed prices',()=>{
+ const cfg=defaultSettings();cfg.traffic={inPerson:0,mobile:0,speed:1};
+ const before=snapshotAt(839,cfg),closing=stepSimulation(before,1);assert.equal(closing.promotion.title,'Closing Rush');assert.equal(closing.promotion.kind,'rescue');assert.equal(closing.promotion.until,895);
+ const fresh=restock(closing,'blueberry',6),replayed=jumpToRush(fresh,'closing');assert.ok(validState(replayed));assert.equal(replayed.batches.at(-1).markdowns_used,1);
+ const again=jumpToRush(replayed,'closing');assert.equal(again.batches.at(-1).current_cents,replayed.batches.at(-1).current_cents);assert.equal(again.batches.at(-1).markdowns_used,1);
+ assert.ok(stepSimulation(again,16).events.every(e=>!e.text.includes('LAST-CALL')));
 });

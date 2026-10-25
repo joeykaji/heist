@@ -18,7 +18,7 @@ The browser demo adapter in model.mjs explicitly supplies synthetic, reviewed-fo
 
 Physical stock, reserved units, protected allocations and buffer units are distinct. Offer stock is I-R-G-B. New offers withdraw five minutes before the configured closing time (3 PM by default); simulated observations refresh every replay tick. At closing, protected stock is recorded as transferred and remaining physical units as retained, not automatically discarded. Those are scripted ledger outcomes, not verified sustainability impact.
 
-Stock crash and last-call events request guarded evaluations; they do not force markdowns. Food pairings use independently confirmed item prices, without a shared-stock bundle discount or joint optimization. Price charts show an individual batch's positive confirmed prices and stop at withdrawal. The demand graph shows the configured purchases per hour across both channels.
+Stock crash and Closing Rush events request guarded evaluations; they do not force markdowns. Food pairings use independently confirmed item prices, without a shared-stock bundle discount or joint optimization. Price charts show an individual batch's positive confirmed prices and stop at withdrawal. The demand graph shows the configured purchases per hour across both channels.
 
 ## Limits
 
@@ -28,7 +28,7 @@ Menu data comes from the supplied screenshots; duplicate Muffin/Chocolate Croiss
 
 The 3D scene shows up to nine enabled foods, up to eight individual models per food. Active pairing foods take priority. Additional units are explicitly counted as back stock; the full menu inventory appears at the Cafe Desk. Sandwiches and bagels occupy the bottom and middle shelves; pastries occupy the top. Visible unit animations also show sales replenished from back stock.
 
-Applying inventory or hours rebuilds the current point in the day from the saved plan; this replaces manual events in that run. Restart returns to opening and pauses. Receiving food creates a fresh batch with editable price, floor and cost; existing batches retain their confirmed price and commitment history. Default traffic is 20 in-person purchases and 20 mobile orders per normal hour, doubled during breakfast and lunch. Closing Rush starts at 2 PM at 0.8× normal traffic. Cafe Desk accepts 0–200 hourly purchases per channel and 0.1–5× rush multipliers over 5–120 minutes. Purchases require available stock; a paired mobile basket counts as one order and two items. Seeking and playback use the same deterministic purchase schedule. Pairing, bakery review and last-call announcements share confirmed prices across all views.
+Applying inventory or hours rebuilds the current point in the day from the saved plan; this replaces manual events in that run. Restart returns to opening and pauses. Receiving food creates a fresh batch with editable price, floor and cost; existing batches retain their confirmed price and commitment history. Illustrative default traffic is 12 in-person purchases and 8 mobile orders per normal hour, doubled during breakfast and lunch. Closing Rush starts at 2 PM at 0.8× normal traffic. Cafe Desk accepts 0–200 hourly purchases per channel and 0.1–5× rush multipliers over 5–120 minutes. Purchases require available stock; a paired mobile basket counts as one order and two items. Seeking and playback use the same deterministic purchase schedule. Pairing, bakery review and Closing Rush announcements share confirmed prices across all views.
 
 ## Verification
 
