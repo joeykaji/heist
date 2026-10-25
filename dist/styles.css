@@ -97,9 +97,11 @@ button,.primary-button,.secondary-button{display:inline-flex;align-items:center;
 @media(max-width:1100px){.bite-journey{padding:22px 18px 12px}.journey-heading h2{font-size:24px}.journey-steps{gap:7px}}
 @media(max-width:760px){.bite-journey{width:100%;max-width:460px;justify-self:center}.journey-heading h2{font-size:25px}.journey-scene{height:300px}}
 @media(prefers-reduced-motion:reduce){.journey-scene{height:auto;display:grid;gap:24px;margin-block:24px}.journey-stage{position:static;animation:none;opacity:1;transform:none}.journey-stage>h3{margin-top:12px}.journey-food>img{height:90px}.journey-pickup svg{height:100px}.journey-steps li{animation:none}.journey-footer button{display:none}}
-.workspace-bar{height:64px}.workspace-bar nav a{font-size:13px;padding:10px 16px}.workspace-bar .workspace-brand{display:flex;align-items:center;line-height:1}
-.home-footer{align-items:center;gap:24px;padding-block:22px;font-size:13px}.home-footer .leaf-wordmark-nav{width:145px}
+.workspace-bar{height:64px;max-width:1360px;margin-inline:auto;padding-inline:5%}.workspace-bar nav a{font-size:13px;padding:10px 16px}.workspace-bar .workspace-brand,.home-footer .workspace-brand{display:flex;align-items:center;line-height:1}
+/* Align the lettering itself; the leaf extends above the wordmark. */
+.workspace-brand .leaf-wordmark-nav{transform:translateY(-4px)}
+.home-footer{display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);align-items:center;gap:24px;padding-block:22px;font-size:13px}.home-footer .leaf-wordmark-nav{width:145px}.home-footer>span:nth-child(2){justify-self:center}.home-footer>span:last-child{justify-self:end;text-align:right}
 .team-list .team-person strong{font-size:16px;line-height:1.4;font-weight:600}.team-list .team-meta,.team-list .team-link{font-size:14px;line-height:1.5}.team-list .team-meta{margin-top:5px}.team-list .team-link{font-weight:600}.team-list li{padding-block:20px}
 
 .campus-photo figcaption a{display:inline;margin:0;white-space:normal}
-@media(max-width:760px){.workspace-bar{height:auto;padding:12px 15px}.workspace-bar nav a{font-size:11px;padding:9px 10px}.home-footer .leaf-wordmark-nav{width:145px}.team-list .team-person strong{font-size:16px}.team-list .team-meta,.team-list .team-link{font-size:13px}.home-footer{align-items:start}}
+@media(max-width:760px){.workspace-bar{height:auto;padding:16px 22px 12px}.workspace-bar nav a{font-size:11px;padding:9px 10px}.home-footer .leaf-wordmark-nav{width:145px}.team-list .team-person strong{font-size:16px}.team-list .team-meta,.team-list .team-link{font-size:13px}.home-footer{grid-template-columns:1fr;align-items:start;gap:12px}.home-footer>span:nth-child(2),.home-footer>span:last-child{justify-self:start;text-align:left}}
