@@ -1,0 +1,66 @@
+{
+  "tool": "Built-in Imagegen",
+  "style": "Café menu photographs, warm cream tabletop, soft daylight, no props or text",
+  "assets": [
+    {
+      "id": "wrap",
+      "prompt": "A Southwest breakfast wrap cut into two halves, eggs, black beans, peppers and cheese visible in the cut face."
+    },
+    {
+      "id": "egg",
+      "prompt": "A vegetarian egg breakfast sandwich on a round golden hard roll, egg and vegetables clearly visible."
+    },
+    {
+      "id": "turkey-roll",
+      "prompt": "A turkey sausage, egg and cheese breakfast sandwich on a golden hard roll."
+    },
+    {
+      "id": "sausage-bagel",
+      "prompt": "A sausage, egg and cheese breakfast sandwich on a plain bagel."
+    },
+    {
+      "id": "bacon-bagel",
+      "prompt": "A bacon, egg and cheese breakfast sandwich on a plain bagel."
+    },
+    {
+      "id": "buffalo",
+      "prompt": "A Buffalo chicken sandwich on a long artisan roll, golden chicken with orange buffalo sauce and crisp lettuce, sliced in half."
+    },
+    {
+      "id": "roast",
+      "prompt": "A roast beef sandwich on a long artisan roll, folded thin roast beef and lettuce, sliced in half."
+    },
+    {
+      "id": "bagel",
+      "prompt": "One golden everything bagel, sesame and poppy seed topping."
+    },
+    {
+      "id": "banana",
+      "prompt": "One bakery banana muffin in a brown paper liner, golden domed top, no berries."
+    },
+    {
+      "id": "double-chocolate",
+      "prompt": "One dark double chocolate muffin in a brown paper liner, dark chocolate chips."
+    },
+    {
+      "id": "strawberry",
+      "prompt": "One flaky croissant with a neat visible red strawberry filling."
+    },
+    {
+      "id": "apple-danish",
+      "prompt": "One square golden apple Danish pastry with visible apple center and light glaze."
+    },
+    {
+      "id": "cherry-danish",
+      "prompt": "One square golden cherry Danish pastry with vivid red cherry center."
+    },
+    {
+      "id": "cheese-danish",
+      "prompt": "One square golden cheese Danish pastry with cream cheese center."
+    },
+    {
+      "id": "doughnut",
+      "prompt": "One round chocolate glazed filled doughnut, no hole."
+    }
+  ]
+}

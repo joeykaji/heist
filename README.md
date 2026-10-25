@@ -1,13 +1,33 @@
-# MarketBite Café Display
+# MarketBite / Connections Cafe
 
-A working café menu application with a fixed 1920 × 1080 (16:9) TV view, six food photographs, current/previous prices, a scrolling market ticker, local inventory controls and a replayable café-day simulation.
+Three connected browser views:
+- ?view=tv — 16:9 menu studio; ?display=1 opens the clean TV display.
+- ?view=simulation — adjustable 3D case, day replay, inventory, events and pricing diagnostics.
+- ?view=mobile — scrollable food menu, search, category sheet, deals and simulated basket.
 
-Run with Node.js: `npm run dev`. Open http://127.0.0.1:4173. Add `?display=1` for TV-only mode. Press F or use Full screen.
+Run: node server.mjs (http://127.0.0.1:4173). Test: node --test test/*.test.mjs.
+Static deployment root: dist. Existing Site identity is retained in .openai/hosting.json.
 
-The studio and TV view sync through localStorage on the same origin and browser profile. Data persists through refresh. This is a single-browser demo, not a multi-device inventory service or checkout integration. The app is private when hosted through Sites.
+## Pricing and inventory
 
-Run checks: `npm test`.
+dist/pricing.mjs implements the equations/status order in the user-supplied MarketBite Pricing Specification 1.1 / Engine 2.1 using Decimal arithmetic (40-digit precision). Candidate cents round upward; fees and expectations retain decimal precision. Unknown required economics/scenario evidence returns REVIEW. Approval flags default false in the engine.
 
-Prices use integer cents. Same-batch discounts move through 0%, 15%, 30%, 45%; fresh restocks create separate regular-price batches. The display labels mixed batches, sells the lowest-priced available batch first, prevents negative stock, and expires offers at 6 PM in the simulated day. Manual markdowns are restricted to the final two hours. The actual clock and data-update timestamp use America/New_York.
+The browser demo adapter in model.mjs explicitly supplies synthetic, reviewed-for-demo fixtures. These fixtures are not claims about Connections Cafe's economics or customer demand. Each batch/window may commit one evaluated HOLD or one acknowledged MARKDOWN. Restocking creates a separate fresh batch; it never relabels residual inventory. Recommendation, authorization, simulated acknowledgment and publication are separate functions/states. Failed simulated checkout updates do not publish a lower price.
 
-The 60-second default replay compresses 8 AM–6 PM. All prices, inventory, activity and generated food images are illustrative. Surplus sales are counted; carbon savings are not invented. Food image prompts and provenance are in dist/image-notes.txt.
+Physical stock, reserved units, protected allocations and buffer units are distinct. Offer stock is I-R-G-B. New offers withdraw five minutes before the 6 PM cutoff; simulated observations refresh every replay tick. At closing, protected stock is recorded as transferred and remaining physical units as retained, not automatically discarded. Those are scripted ledger outcomes, not verified sustainability impact.
+
+Stock crash and last-call events request guarded evaluations; they do not force markdowns. Study Buddy is an independently priced food pairing, without a shared-stock bundle discount or joint optimization. Price charts show an individual batch's positive confirmed prices and stop at withdrawal. Demand is a separate scripted index.
+
+## Limits
+
+Browser-local prototype, no POS, Grubhub, payment, actual orders, or cross-device service. localStorage synchronizes tabs on one origin; Web Locks serialize supported-browser mutations. No claim of real-world approval, demand calibration, carbon savings, or production checkout readiness. Accepted demo purchases are fulfilled immediately at the quoted batch price; operational cancellations, refunds and a durable authoritative ledger require a server/POS integration.
+
+Menu data comes from the supplied screenshots; duplicate Muffin/Chocolate Croissant listings were consolidated. All distinct food products are included; drinks are excluded. AI-generated food photos are representative, and bagel flavors share a category photo. Logos are user-supplied. image-notes.txt and image-prompts.json describe image provenance.
+
+The 3D scene shows nine representative foods, up to eight individual models per food. Additional units are explicitly counted as back stock; the full menu inventory appears in the inventory panel.
+
+## Verification
+
+Tests cover price rounding/floors, fees and activation, scenario caps, missing and invalid inputs, strict/inclusive gates, downside protection, weight normalization, tie-breaking, holds, idempotence, failed publication, stale execution, reserved/protected stock, new batch identity, exact basket allocation, cutoff behavior, state validation and a conserved day replay. Browser checks cover the TV, mobile search/basket/category flow, 3D renderer and event controls.
+
+Vendors: Three.js 0.160.1 (MIT); Decimal.js 10.4.3 (MIT). Both are served locally; license notices remain in the files.
