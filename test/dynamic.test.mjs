@@ -1,0 +1,38 @@
+import test from 'node:test';
+import assert from 'node:assert/strict';
+import {dynamicPrice} from '../src/domain/dynamic.mjs';
+import {initialState,advance,sell,validState,evaluateBatch,executeDemoDecision} from '../dist/model.mjs';
+import {chartSamples} from '../web/price-history.mjs';
+import {marketChart} from '../web/market-chart.mjs';
+const batch=()=>({label:'Test',original_cents:1000,current_cents:800,physical_units:10,reference_units:10,reserved_units:0,protected_units:0,buffer_units:0,fee_fraction:'0',sale_cost_cents:100,order_fee_cents:0,merchant_floor_cents:1,min_unit_contribution_cents:25,minutes_to_cutoff:30,fulfillment_buffer_minutes:5,count_age_minutes:0,safe_and_approved:true,checkout_supported:true,surplus_eligible:true,economics_reviewed:true});
+test('stock/time target falls with time and recovers after sales, bounded per adjustment',()=>{
+ const b=batch(),r=dynamicPrice(b);assert.equal(r.status,'MARKDOWN');assert.equal(r.price_cents,750);
+ const recovery=dynamicPrice({...b,physical_units:2});assert.equal(recovery.status,'INCREASE');assert.equal(recovery.price_cents,850);
+ assert.ok(dynamicPrice({...b,minutes_to_cutoff:60}).target_cents>r.target_cents);
+ assert.equal(dynamicPrice({...b,merchant_floor_cents:900}).price_cents,900);
+ assert.ok(dynamicPrice({...b,current_cents:995,physical_units:1,minutes_to_cutoff:120}).price_cents<=1000);
+});
+test('paused, stale, missing economics and cutoff cannot publish a dynamic price',()=>{
+ for(const change of [{safe_and_approved:false},{checkout_supported:false},{closed:true},{count_age_minutes:31},{minutes_to_cutoff:5},{physical_units:0}])assert.equal(dynamicPrice({...batch(),...change}).status,'PAUSE');
+ assert.equal(dynamicPrice({...batch(),fee_fraction:null}).status,'REVIEW');
+ assert.equal(dynamicPrice({...batch(),economics_reviewed:false}).status,'REVIEW');
+ assert.throws(()=>dynamicPrice({...batch(),reference_units:0}));
+});
+test('automatic prices stay fixed between half-hour reviews, sales affect the next review',()=>{
+ let s=initialState('opening');s=advance(s,240);const b=s.batches[0],price=b.current_cents;
+ s=advance(s,1);s=sell(s,'southwest');assert.equal(s.batches[0].current_cents,price);
+ s=advance(s,28);assert.equal(s.batches[0].current_cents,price);
+ s=advance(s,1);assert.equal(s.minute%30,0);assert.ok(s.batches[0].current_cents>price);assert.ok(validState(s));
+});
+test('manual increases require acknowledgment and leave future evaluations enabled',()=>{
+ let s=advance(initialState('opening'),240);s=sell(s,'southwest');const r=evaluateBatch(s,'batch-0');assert.equal(r.status,'INCREASE');
+ assert.throws(()=>executeDemoDecision(s,'batch-0',r,false,true,'unauthorized'));
+ const failed=executeDemoDecision(s,'batch-0',r,true,false,'failed');assert.equal(failed.batches[0].current_cents,s.batches[0].current_cents);
+ const done=executeDemoDecision(s,'batch-0',r,true,true,'done');assert.ok(done.batches[0].current_cents>s.batches[0].current_cents);assert.equal(done.batches[0].window_committed,false);
+});
+test('chart sampling retains endpoints and ledger while hiding intermediate markers',()=>{
+ const points=Array.from({length:300},(_,at)=>({at,price:1000-at})),before=structuredClone(points),sample=chartSamples(points);
+ assert.ok(sample.length<=32);assert.equal(sample[0],points[0]);assert.equal(sample.at(-1),points.at(-1));assert.deepEqual(points,before);
+ const s=initialState('opening'),b=s.batches[0];b.priceEvents=points;b.cutoff=900;b.observedAt=300;
+ const html=marketChart({minute:300,policy:s.policy,offers:[{...b,offerId:'test',name:'Test'}]});assert.equal((html.match(/<circle/g)||[]).length,1);assert.match(html,/30-minute samples/);assert.equal((html.match(/<tr><td>/g)||[]).length,300);
+});

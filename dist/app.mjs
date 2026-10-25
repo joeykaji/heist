@@ -1,10 +1,13 @@
+import {chartSamples} from './price-history.mjs';
+import {createExchange,sparkline} from './exchange-tv.mjs';
 import {CATALOG,CATEGORIES,FEATURED,hoursFor,migrateState,money,simTime,initialState,validState,productView,offerAvailable,rawAvailable,sell,restock,evaluateBatch,executeDemoDecision,observeStock,setAllocations,demoScenarios,triggerEvent,comboView,buyCombo,basketQuote,applyTicker,stepSimulation,snapshotAt,demand,settingsFor,updateSettings,startPlannedDay,receiveStock,recountBatch,jumpToRush,endDeal} from './model.mjs';
 import {createCase} from './case.mjs';
 const $=id=>document.getElementById(id),KEY='marketbite-connections-v3',escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-const params=new URLSearchParams(location.search),displayOnly=params.get('display')==='1';
-let view=displayOnly?'tv':params.get('view')||'home',state,playing=false,timer=null,storageAvailable=true,page=0,tvCategory='featured',selectedBatch='batch-5',decision=null,basket={},dealsOnly=false,caseScene=null;
+const params=new URLSearchParams(location.search),displayOnly=['1','exchange'].includes(params.get('display'));
+let view=displayOnly?(params.get('display')==='exchange'?'exchange':'tv'):params.get('view')||'home',state,playing=false,timer=null,storageAvailable=true,page=0,tvCategory='featured',selectedBatch='batch-5',decision=null,basket={},dealsOnly=false,caseScene=null;
 function read(){try{const s=JSON.parse(localStorage.getItem(KEY));if(validState(s))return s;const migrated=migrateState(s);if(migrated){localStorage.setItem(KEY+'-before-hours-update',JSON.stringify(s));localStorage.setItem(KEY,JSON.stringify(migrated));return migrated;}}catch{storageAvailable=false;}return null;}
 state=read()||initialState();
+const exchange=createExchange();
 const timeFormat=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',second:'2-digit'});
 const pct=n=>n.toFixed(1).replace(/\.0$/,'');
 let toastTimer;
@@ -18,8 +21,8 @@ async function change(fn,{stop=true}={}){
  if(navigator.locks)await navigator.locks.request(KEY,run);else run();
 }
 function showView(next,push=true){
- view=next==='simulation'?'tv':['home','tv','mobile','sustainability','inventory'].includes(next)?next:'home';
- for(const id of ['home','tv','mobile','simulation','sustainability','inventory'])$('view-'+id).hidden=id==='simulation'?view!=='tv'||displayOnly:id!==view;
+ view=next==='simulation'?'tv':['home','tv','exchange','mobile','sustainability','inventory'].includes(next)?next:'home';
+ for(const id of ['home','tv','exchange','mobile','simulation','sustainability','inventory'])$('view-'+id).hidden=id==='simulation'?view!=='tv'||displayOnly:id!==view;
  document.querySelectorAll('.workspace-bar [data-view]').forEach(a=>{if(a.dataset.view===view)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
  if(push&&!displayOnly){history.pushState({},'', '?view='+view);window.scrollTo(0,0);}
  if(view==='tv'&&!displayOnly){if(!caseScene)caseScene=createCase($('case-stage'));caseScene?.setState(state);caseScene?.resize();}
@@ -28,7 +31,7 @@ function showView(next,push=true){
 function revealSection(id){const target=$(id);if(!target)return;for(let node=target;node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;target.scrollIntoView({behavior:'smooth',block:'start'});}
 document.querySelectorAll('[data-view]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();showView(a.dataset.view);if(a.hash)revealSection(a.hash.slice(1));}));
 window.addEventListener('popstate',()=>showView(new URLSearchParams(location.search).get('view')||'home',false));
-if(displayOnly){document.body.classList.add('tv-only');$('tv-tools').hidden=false;}
+if(displayOnly){document.body.classList.add(view==='exchange'?'exchange-only':'tv-only');$('tv-tools').hidden=false;if(view==='exchange')$('tv-tools').querySelector('a').href='?view=exchange';}
 function resize(){const r=$('tv-stage').getBoundingClientRect();if(!r.width)return;const scale=Math.min(r.width/1920,r.height/1080);$('tv').style.transform=document.fullscreenElement===$('tv-stage')?'translate(-50%,-50%) scale('+scale+')':'scale('+scale+')';}
 new ResizeObserver(resize).observe($('tv-stage'));window.addEventListener('resize',resize);document.addEventListener('fullscreenchange',resize);
 for(const id of ['tv-category','inventory-category'])for(const c of CATEGORIES){const o=document.createElement('option');o.value=c;o.textContent=c;$(id).append(o);}
@@ -101,7 +104,7 @@ function renderCharts(){
  const b=state.batches.find(b=>b.id===$('chart-batch').value)||state.batches[0],available=offerAvailable(state,b)>0;
  $('chart-price').textContent=available?money(b.current_cents):'Offer unavailable';
  const terminal=b.terminalAt??(available?state.minute:Math.min(state.minute,b.observedAt+state.policy.max_count_age_minutes));
- chart('price-chart',b.priceEvents.map(e=>({at:e.at,value:e.price})),b.original_cents,v=>'$'+(v/100).toFixed(2),true,terminal);
+ chart('price-chart',chartSamples(b.priceEvents).map(e=>({at:e.at,value:e.price})),b.original_cents,v=>'$'+(v/100).toFixed(2),false,terminal);
  $('chart-stock').textContent=state.history.at(-1).stock+' units';
  chart('stock-chart',state.history.map(e=>({at:e.at,value:e.stock})),Math.max(10,...state.history.map(e=>e.stock)),v=>Math.round(v),true);
  $('chart-demand').textContent=demand(state)+' / 100';
@@ -116,27 +119,30 @@ function renderDecision(){
  const b=state.batches.find(b=>b.id===$('decision-batch').value);if(!b)return;
  for(const [input,k] of [['reserved','reserved_units'],['protected','protected_units'],['buffer','buffer_units']])if(document.activeElement!==$(input))$(input).value=b[k];
  if(document.activeElement!==$('physical-count'))$('physical-count').value=b.physical_units;
- const scenarios=demoScenarios(b,state.policy,$('scenario-profile').value);
- const prices=Object.keys(scenarios[0]?.demand||{});
- $('scenario-table').innerHTML='<table><thead><tr><th>Assumed demand</th>'+prices.map(p=>'<th>'+money(Number(p))+'</th>').join('')+'</tr></thead><tbody>'+scenarios.map(s=>'<tr><td>'+s.label+' ('+Number(s.weight)*100+'%)</td>'+prices.map(p=>'<td>'+s.demand[p]+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
+ $('scenario-table').innerHTML='<p>Dynamic prices follow unallocated stock and time before closing. Sales can raise prices; unsold stock gradually lowers them. Evaluated every 30 simulated minutes. Each adjustment is capped at 5% of regular price.</p>';
  $('publish-price').hidden=true;$('fail-price').hidden=true;
- if(!decision){$('decision-result').innerHTML='<p>Physical '+b.physical_units+' − reserved '+b.reserved_units+' − protected '+b.protected_units+' − buffer '+b.buffer_units+' = '+rawAvailable(b)+' offer units. '+(b.window_committed?'This window is committed.':'Evaluate to compare the permitted prices.')+'</p>';return;}
+ if(!decision){$('decision-result').innerHTML='<p>Physical '+b.physical_units+' − reserved '+b.reserved_units+' − protected '+b.protected_units+' − buffer '+b.buffer_units+' = '+rawAvailable(b)+' offer units. '+(b.window_committed?'Dynamic pricing is active.':'Prices update with time and purchases.')+'</p>';return;}
  const d=decision;
- $('decision-result').innerHTML='<span class="result-status '+d.status.toLowerCase()+'">'+d.status+'</span><p>'+escape(d.reason)+'</p>'+(d.floor_cents!==null?'<p>Floor '+money(d.floor_cents)+' · '+d.available+' offer units'+(d.evaluation_completed?' · baseline leftovers '+d.expected_baseline_leftovers.toFixed(2):'')+'</p>':'')+(d.rows.length?'<table><thead><tr><th>Candidate</th><th>Expected sales</th><th>Expected gain</th><th>Worst listed gain</th><th>Passes gates</th></tr></thead><tbody>'+d.rows.map(r=>'<tr class="'+(r.admissible?'accepted':'')+'"><td>'+money(r.price_cents)+(r.price_cents===d.price_cents?' · selected':'')+'</td><td>'+r.expected_sales.toFixed(2)+'</td><td>'+money(r.expected_gain_cents)+'</td><td>'+money(r.worst_gain_cents)+'</td><td>'+(r.admissible?'Yes':r.price_cents===b.current_cents?'Baseline':'No')+'</td></tr>').join('')+'</tbody></table>':'');
- if(d.evaluation_completed&&!b.window_committed){$('publish-price').hidden=false;$('publish-price').textContent=d.status==='MARKDOWN'?'Publish '+money(d.price_cents)+' to demo screens':'Keep this price for this batch';$('fail-price').hidden=d.status!=='MARKDOWN';}
+ $('decision-result').innerHTML='<span class="result-status '+d.status.toLowerCase()+'">'+d.status+'</span><p>'+escape(d.reason)+'</p>'+(d.floor_cents!==null?'<p>Floor '+money(d.floor_cents)+' · '+d.available+' offer units'+''+'</p>':'')+(d.rows.length?'<table><thead><tr><th>Candidate</th><th>Expected sales</th><th>Expected gain</th><th>Worst listed gain</th><th>Passes gates</th></tr></thead><tbody>'+d.rows.map(r=>'<tr class="'+(r.admissible?'accepted':'')+'"><td>'+money(r.price_cents)+(r.price_cents===d.price_cents?' · selected':'')+'</td><td>'+r.expected_sales.toFixed(2)+'</td><td>'+money(r.expected_gain_cents)+'</td><td>'+money(r.worst_gain_cents)+'</td><td>'+(r.admissible?'Yes':r.price_cents===b.current_cents?'Baseline':'No')+'</td></tr>').join('')+'</tbody></table>':'');
+ if(d.evaluation_completed&&!b.window_committed){$('publish-price').hidden=false;$('publish-price').textContent=d.status!=='HOLD'?'Publish '+money(d.price_cents)+' to demo screens':'Keep this price for this batch';$('fail-price').hidden=d.status==='HOLD';}
 }
 $('publish-price').onclick=()=>{const d=decision;if(!d)return;change(s=>executeDemoDecision(s,d.batchId,d,true,true,'manual-'+d.windowId+'-'+d.checkoutVersion)).then(()=>{decision=null;renderDecision();});};
 $('fail-price').onclick=()=>{const d=decision;if(d)change(s=>executeDemoDecision(s,d.batchId,d,true,false,'failed-'+d.windowId));};
 $('save-allocations').onclick=()=>change(s=>setAllocations(s,$('decision-batch').value,Number($('reserved').value),Number($('protected').value),Number($('buffer').value))).then(()=>{decision=null;renderDecision();});
 $('scenario-profile').onchange=()=>{decision=null;renderDecision();};
-function updatePlayback(){for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).textContent=playing?'Pause':'Play';for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).disabled=!playing&&state.minute>=hoursFor(state).close;$('run-day').textContent=playing?'Restart day':'Replay day';}
+function updatePlayback(){for(const id of ['pause-day','mobile-pause','mobile-mini-play','exchange-play'])$(id).textContent=playing?'Pause':'Play';for(const id of ['pause-day','mobile-pause','mobile-mini-play','exchange-play'])$(id).disabled=!playing&&state.minute>=hoursFor(state).close;$('run-day').textContent=playing?'Restart day':'Replay day';$('exchange-playback-status').textContent=playing?'Playing':state.minute>=hoursFor(state).close?'Day complete':'Paused';$('exchange-replay').textContent=playing?'Restart day':'Replay day';}
 function pause(){clearInterval(timer);timer=null;playing=false;updatePlayback();}
 function start(){if(state.minute>=hoursFor(state).close)return;clearInterval(timer);playing=true;updatePlayback();timer=setInterval(async()=>{await change(s=>stepSimulation(s,5),{stop:false});if(state.minute>=hoursFor(state).close)pause();},60000/((hoursFor(state).close-hoursFor(state).open)/5)/Number($('speed').value));}
 $('run-day').onclick=()=>change(s=>startPlannedDay(s)).then(()=>{decision=null;start();});
 $('pause-day').onclick=()=>playing?pause():start();
-$('speed').onchange=()=>{if(playing)start();};
+$('speed').onchange=()=>{$('exchange-speed').value=$('speed').value;if(playing)start();};
+$('exchange-speed').onchange=e=>{$('speed').value=e.target.value;if(playing)start();};
+$('exchange-play').onclick=$('pause-day').onclick;
+$('exchange-replay').onclick=$('run-day').onclick;
+$('exchange-forward').onclick=()=>change(s=>stepSimulation(s,5));
 $('reset').onclick=()=>{basket={};decision=null;change(s=>initialState('deals',settingsFor(s)));};
 $('day-slider').oninput=e=>{const minute=Number(e.target.value);basket={};decision=null;change(s=>snapshotAt(minute,settingsFor(s)));};
+$('exchange-slider').oninput=$('day-slider').oninput;
 document.querySelectorAll('[data-event]').forEach(button=>button.onclick=async()=>{
  const kind=button.dataset.event;await change(s=>triggerEvent(s,kind,kind==='combo'?{title:'Study Buddy',ids:['buffalo','blueberry']}:{ }));toast(kind==='crash'||kind==='rescue'?'Eligible batches reviewed. Confirmed prices stay in place.':'Sandwich & muffin pairing is on the mobile menu.');
 });
@@ -155,7 +161,7 @@ function renderMobile(){
  $('mobile-menu').innerHTML=matches.length?CATEGORIES.map((category,i)=>{
  const products=matches.filter(p=>p.category===category);if(!products.length)return '';
  return '<section class="mobile-menu-section" id="mobile-category-'+i+'"><h3>'+category+'</h3>'+products.map(product=>{
- const p=productView(state,product.id);return '<article class="mobile-card '+(!p.quantity?'unavailable':p.saving?'discounted':'')+'"><div class="mobile-card-info"><span class="mobile-symbol">'+p.symbol+'</span><h4>'+escape(p.name)+'</h4><div class="mobile-price">'+(p.quantity?money(p.price):'Unavailable')+(p.quantity&&p.saving?'<s>'+money(p.base)+'</s>':'')+'</div>'+(p.quantity&&p.saving?'<div class="mobile-drop">↓ '+pct(p.discount)+'% · Save '+money(p.saving)+'</div>':'')+'<div class="mobile-quantity">'+(p.quantity?p.offerQuantity+' at this price · '+simTime(p.priceAt):'Check back for fresh stock')+'</div></div><div class="mobile-thumb"><img src="'+p.image+'" alt="'+escape(p.name)+'" loading="lazy"><button class="mobile-add" data-add="'+p.id+'" aria-label="Add '+escape(p.name)+'" '+(!p.quantity?'disabled':'')+'>+</button></div></article>';
+ const p=productView(state,product.id),priceBatch=state.batches.find(b=>b.id===p.batchId)??state.batches.filter(b=>b.productId===product.id).at(-1);return '<article class="mobile-card '+(!p.quantity?'unavailable':p.saving?'discounted':'')+'"><div class="mobile-card-info"><span class="mobile-symbol">'+p.symbol+'</span><h4>'+escape(p.name)+'</h4><div class="mobile-price">'+(p.quantity?money(p.price):'Unavailable')+(p.quantity&&p.saving?'<s>'+money(p.base)+'</s>':'')+'</div>'+(p.quantity&&p.saving?'<div class="mobile-drop">↓ '+pct(p.discount)+'% · Save '+money(p.saving)+'</div>':'')+'<div class="mobile-quantity">'+(p.quantity?p.offerQuantity+' at this price · '+simTime(p.priceAt):'Check back for fresh stock')+'</div><div class="mobile-item-history"><span>Price history</span>'+sparkline(priceBatch,state)+'</div></div><div class="mobile-thumb"><img src="'+p.image+'" alt="'+escape(p.name)+'" loading="lazy"><button class="mobile-add" data-add="'+p.id+'" aria-label="Add '+escape(p.name)+'" '+(!p.quantity?'disabled':'')+'>+</button></div></article>';
  }).join('')+'</section>';
  }).join(''):'<p class="empty-menu">No matching foods. Try another search or clear the price-drop filter.</p>';
  $('deals-only').setAttribute('aria-pressed',String(dealsOnly));renderBasket();
@@ -198,8 +204,8 @@ $('basket-open').onclick=()=>{renderBasket();$('basket-dialog').showModal();};
 $('basket-items').onclick=e=>{const id=e.target.closest('[data-remove]')?.dataset.remove;if(!id)return;if(--basket[id]===0)delete basket[id];renderBasket();};
 $('checkout').onclick=async()=>{let success=false;await change(s=>{const result=basketQuote(s,basket);success=true;return result.state;});if(success){basket={};renderBasket();$('basket-dialog').close();toast('Demo purchase complete. Case inventory updated.');}};
 function render(previous){
- renderHours();renderSustainability();renderHome();renderDesk();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
- $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-live-time').textContent='DEMO / '+simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;
+ exchange.update(state);renderHours();renderSustainability();renderHome();renderDesk();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
+ $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-live-time').textContent='DEMO / '+simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;$('exchange-slider').value=state.minute;$('exchange-slider').setAttribute('aria-valuetext',simTime(state.minute));$('exchange-playback-time').textContent=simTime(state.minute);$('exchange-forward').disabled=state.minute>=hoursFor(state).close;
  $('total-stock').textContent=state.batches.reduce((n,b)=>n+offerAvailable(state,b),0);$('total-sold').textContent=state.sold;updatePlayback();caseScene?.setState(state);
 }
 function syncLatest(){
@@ -219,9 +225,10 @@ let deskSignature='',planDirty=false,hoursSignature='',hoursDirty=false;
 const clockInput=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
 const minuteInput=value=>{if(!/^\d{2}:\d{2}$/.test(value))throw new Error('Choose opening and closing times.');const [h,m]=value.split(':').map(Number);return h*60+m;};
 function renderHours(){
+ $('exchange-open').textContent=simTime(hoursFor(state).open);$('exchange-close').textContent=simTime(hoursFor(state).close);
  const {open,close}=hoursFor(state),signature=open+':'+close;
  if(signature!==hoursSignature&&!hoursDirty){$('hours-open').value=clockInput(open);$('hours-close').value=clockInput(close);hoursSignature=signature;}
- for(const id of ['day-slider','mobile-day-slider']){$(id).min=open;$(id).max=close;}
+ for(const id of ['day-slider','mobile-day-slider','exchange-slider']){$(id).min=open;$(id).max=close;}
  $('timeline-labels').innerHTML='<span>'+simTime(open)+' · Open</span><span>'+simTime(close-120)+' · Review</span><span>'+simTime(close)+' · Close</span>';
  $('mobile-hours').textContent='Cafe hours · '+simTime(open)+'–'+simTime(close);rushAvailability();
 }

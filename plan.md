@@ -1,5 +1,7 @@
 # Campus Food Exchange — Implementation Checklist
 
+> Historical checklist: the next MarketBite dashboard milestone is planned in [docs/plans/README.md](docs/plans/README.md). The milestone combines a customer storefront, a stock-market-style terminal, and staff controls using shared state. Those plans supersede this checklist's recurring pricing, upward recovery, quote-lock, and branding assumptions for that milestone. This file is retained as broader campus-pilot context; its completed pricing items describe the legacy engine, not the attached Model 2.0 specification.
+
 Target submission: October 26, 2026, 11:59 p.m. (confirm submission timezone).
 
 Build a Connections Cafe proof of concept: staff-approved surplus offers, a live student price display, an animated sandwich case, and mock checkout. Label inventory, orders, and results as simulated. A live dining pilot is a separate milestone.

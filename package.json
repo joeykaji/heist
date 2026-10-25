@@ -3,5 +3,18 @@
   "version": "1.0.0",
   "private": true,
   "type": "module",
-  "scripts": {"test": "node --test test/*.test.mjs", "dev": "node server.mjs"}
+  "scripts": {
+    "test": "npm run build && node --test test/*.test.mjs && npm run test:legacy",
+    "dev": "npm run build && node server.mjs",
+    "build:pricing": "node scripts/build-pricing.mjs",
+    "test:legacy": "tsc -p tsconfig.legacy.json && node --test .legacy-build/test/*.test.js",
+    "demo": "node src/demo.mjs",
+    "demo:legacy": "tsc -p tsconfig.legacy.json && node .legacy-build/src/demo.js",
+    "typecheck": "tsc --noEmit -p tsconfig.json",
+    "build": "npm run build:pricing && node scripts/build-workspace.mjs"
+  },
+  "devDependencies": {
+    "@types/node": "^22.0.0",
+    "typescript": "^5.7.0"
+  }
 }

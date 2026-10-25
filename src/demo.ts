@@ -1,3 +1,4 @@
+// LEGACY demo only. The active scenario-contract CLI is src/demo.mjs (npm run demo).
 import { evaluatePricing, type Product, type Batch, type PricingState } from "./pricing.js";
 
 const MIN = 60_000;

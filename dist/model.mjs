@@ -20,6 +20,7 @@ export const CATALOG=[
 ];
 export {DEFAULT_POLICY,decide} from './pricing.mjs';
 import {DEFAULT_POLICY,decide,candidatePrices} from './pricing.mjs';
+import {dynamicPrice} from './domain/dynamic.mjs';
 export const CATEGORIES=[...new Set(CATALOG.map(p=>p.category))];
 export const FEATURED=['southwest','buffalo','roast','everything','chocolate','blueberry'];
 export const OPEN=420,CLOSE=900;
@@ -31,7 +32,7 @@ export function offerAvailable(s,b){const floor=candidatePrices(b,s.policy).floo
 export const hoursFor=s=>s?.settings?.hours||{open:OPEN,close:CLOSE};
 function batch(product,i,quantity,minute,menu,cutoff){
  if(menu)product={...product,base:menu.price};
- return {id:'batch-'+i,windowId:'batch-'+i+'-close',offerId:'CONN-'+product.symbol+'-'+i,location:'Connections Cafe',productId:product.id,label:product.symbol+' / B'+i,original_cents:product.base,current_cents:product.base,physical_units:quantity,reserved_units:0,protected_units:0,buffer_units:0,fee_fraction:'0',sale_cost_cents:menu?.cost??20,order_fee_cents:0,min_unit_contribution_cents:25,merchant_floor_cents:menu?.floor??1,activation_cents:25,fulfillment_buffer_minutes:5,capacity_units:null,safe_and_approved:true,checkout_supported:true,surplus_eligible:true,demand_reviewed:true,economics_reviewed:true,markdowns_used:0,window_committed:false,cutoff,observedAt:minute,checkoutVersion:1,createdAt:minute,priceEvents:[{at:minute,price:product.base,version:1,operationId:'initial-'+i}],decision:null,terminalAt:null};
+ return {id:'batch-'+i,windowId:'batch-'+i+'-close',offerId:'CONN-'+product.symbol+'-'+i,location:'Connections Cafe',productId:product.id,label:product.symbol+' / B'+i,original_cents:product.base,current_cents:product.base,physical_units:quantity,reference_units:Math.max(1,quantity),reserved_units:0,protected_units:0,buffer_units:0,fee_fraction:'0',sale_cost_cents:menu?.cost??20,order_fee_cents:0,min_unit_contribution_cents:25,merchant_floor_cents:menu?.floor??1,activation_cents:25,fulfillment_buffer_minutes:5,capacity_units:null,safe_and_approved:true,checkout_supported:true,surplus_eligible:true,demand_reviewed:true,economics_reviewed:true,markdowns_used:0,window_committed:false,cutoff,observedAt:minute,checkoutVersion:1,createdAt:minute,priceEvents:[{at:minute,price:product.base,version:1,operationId:'initial-'+i}],decision:null,terminalAt:null};
 }
 export function productView(s,id){
  const product=CATALOG.find(p=>p.id===id);if(!product)throw new Error('Unknown food.');
@@ -65,7 +66,7 @@ export function validState(s){
   validateSettings(s.settings);
   if(s.promotion){const p=s.promotion;if(p.ids&&(!Array.isArray(p.ids)||p.ids.length!==2||new Set(p.ids).size!==2||!p.ids.every(id=>CATALOG.some(f=>f.id===id))))return false;if(p.title!==undefined&&(typeof p.title!=='string'||p.title.length>60))return false;if(p.category!==undefined&&!['all',...CATEGORIES].includes(p.category))return false;if(p.rushType!==undefined&&!['breakfast','lunch','dinner'].includes(p.rushType))return false;}
   for(const b of s.batches){
-   if(!CATALOG.some(p=>p.id===b.productId)||typeof b.id!=='string'||b.windowId!==b.id+'-close'||!Number.isInteger(b.observedAt)||b.observedAt>s.minute||!Number.isInteger(b.cutoff)||b.cutoff!==close||!Number.isInteger(b.checkoutVersion)||!Array.isArray(b.priceEvents)||b.priceEvents.length<1||b.priceEvents.length>2||!b.priceEvents.every((e,i,a)=>Number.isInteger(e.price)&&e.price>0&&Number.isInteger(e.at)&&(i===0||e.price<a[i-1].price))||b.priceEvents.at(-1).price!==b.current_cents||b.markdowns_used>1)return false;
+   if(!CATALOG.some(p=>p.id===b.productId)||typeof b.id!=='string'||b.windowId!==b.id+'-close'||!Number.isInteger(b.observedAt)||b.observedAt>s.minute||!Number.isInteger(b.cutoff)||b.cutoff!==close||!Number.isInteger(b.checkoutVersion)||!Array.isArray(b.priceEvents)||b.priceEvents.length<1||(b.reference_units!==undefined&&(!Number.isSafeInteger(b.reference_units)||b.reference_units<1))||!b.priceEvents.every((e,i,a)=>Number.isInteger(e.price)&&e.price>0&&Number.isInteger(e.at)&&(e.price<=b.original_cents&&(i===0||e.at>=a[i-1].at)))||b.priceEvents.at(-1).price!==b.current_cents)return false;
    decide({...b,minutes_to_cutoff:b.cutoff-s.minute,count_age_minutes:s.minute-b.observedAt},[],s.policy);
   }
  }catch{return false;}
@@ -80,7 +81,7 @@ export function demoScenarios(b,policy=DEFAULT_POLICY,profile='normal'){
 }
 export function evaluateBatch(s,id,profile='normal'){
  const b=s.batches.find(b=>b.id===id);if(!b)throw new Error('Unknown batch.');
- const result=decide({...b,minutes_to_cutoff:b.cutoff-s.minute,count_age_minutes:s.minute-b.observedAt},demoScenarios(b,s.policy,profile),s.policy);
+ const result=dynamicPrice({...b,minutes_to_cutoff:b.cutoff-s.minute,count_age_minutes:s.minute-b.observedAt,sale_window_minutes:b.cutoff-b.createdAt},s.policy);
  return {...result,batchId:id,windowId:b.windowId,checkoutVersion:b.checkoutVersion,physical:b.physical_units,reserved:b.reserved_units,protected:b.protected_units,buffer:b.buffer_units,evaluatedAt:s.minute,profile};
 }
 export function executeDemoDecision(source,id,recommendation,authorized=false,acknowledged=false,operationId=''){
@@ -88,18 +89,26 @@ export function executeDemoDecision(source,id,recommendation,authorized=false,ac
  if(!b||!operationId)throw new Error('A batch and operation ID are required.');
  if(b.decision?.operationId===operationId)return s;
  if(!recommendation.evaluation_completed)return s;
- if(b.window_committed)throw new Error('This batch/window is already committed.');
  if(recommendation.windowId!==b.windowId||recommendation.checkoutVersion!==b.checkoutVersion||recommendation.evaluatedAt!==s.minute||recommendation.physical!==b.physical_units||recommendation.reserved!==b.reserved_units||recommendation.protected!==b.protected_units||recommendation.buffer!==b.buffer_units)throw new Error('Time, checkout or stock changed. Evaluate again.');
  const check=evaluateBatch(s,id,recommendation.profile);
  if(!check.evaluation_completed||check.status!==recommendation.status||check.price_cents!==recommendation.price_cents)throw new Error('Decision changed. Evaluate again.');
- if(check.status==='MARKDOWN'){
+ if(check.status==='MARKDOWN'||check.status==='INCREASE'){
   if(!authorized)throw new Error('Staff authorization is required.');
   if(!acknowledged){event(s,'Checkout update failed. '+b.label+' keeps its confirmed price.','failure');return finish(s);}
-  b.current_cents=check.price_cents;b.checkoutVersion++;b.markdowns_used++;
+  b.current_cents=check.price_cents;b.checkoutVersion++;if(check.status==='MARKDOWN')b.markdowns_used++;
   b.priceEvents.push({at:s.minute,price:b.current_cents,version:b.checkoutVersion,operationId});
  }
- b.window_committed=true;b.decision={...check,operationId};
- event(s,b.label+' · '+(check.status==='MARKDOWN'?'checkout acknowledged '+money(b.current_cents):'evaluated HOLD')+'. Window committed.',check.status==='MARKDOWN'?'drop':'hold');return finish(s);
+ b.window_committed=false;b.decision={...check,operationId};
+ event(s,b.label+' · '+(check.status!=='HOLD'?'checkout acknowledged '+money(b.current_cents):'evaluated HOLD')+'. Dynamic pricing remains active.',check.status==='MARKDOWN'?'drop':check.status==='INCREASE'?'rise':'hold');return finish(s);
+}
+export function repriceDynamic(source, excluded=[]) {
+ let s=source;
+ for(const b of source.batches){
+  if(excluded.includes(b.id)||b.closed)continue;
+  const r=evaluateBatch(s,b.id);
+  if(r.evaluation_completed&&r.price_cents!==b.current_cents)s=executeDemoDecision(s,b.id,r,true,true,'dynamic-'+s.revision+'-'+s.minute+'-'+b.id+'-'+b.checkoutVersion);
+ }
+ return s;
 }
 export function sell(source,id){
  const s=copy(source),p=productView(s,id);if(!p.quantity)throw new Error('No available offer stock.');
@@ -122,6 +131,8 @@ export function setAllocations(source,id,reserved,protectedUnits,buffer){
 }
 export function advance(source,minutes=1,{observe=true}={}){
  if(!Number.isInteger(minutes)||minutes<0||minutes>1440)throw new Error('Invalid time step.');
+ if(minutes===0)return source;
+ if(minutes>1){let s=source;for(let i=0;i<minutes&&s.minute<hoursFor(s).close;i++)s=advance(s,1,{observe});return s;}
  const s=copy(source),{close}=hoursFor(s);s.minute=Math.min(close,s.minute+minutes);
  if(observe)for(const b of s.batches)b.observedAt=s.minute;
  for(const b of s.batches)if(s.minute>=b.cutoff-b.fulfillment_buffer_minutes&&b.terminalAt===null)b.terminalAt=b.cutoff-b.fulfillment_buffer_minutes;
@@ -131,20 +142,16 @@ export function advance(source,minutes=1,{observe=true}={}){
   s.transferred+=b.protected_units;s.retained+=b.physical_units-b.protected_units;
   b.physical_units=0;b.reserved_units=0;b.protected_units=0;b.buffer_units=0;
  }
- return finish(s);
+ return s.minute%30===0?repriceDynamic(finish(s)):finish(s);
 }
 export function triggerEvent(source,kind,options={}){
  if(!['crash','combo','rush','rescue'].includes(kind))throw new Error('Unknown event.');
  let s=copy(source);if(s.minute>=hoursFor(s).close-5)throw new Error('Start a new day to run an event.');
  const cfg=settingsFor(s).deal;
  s.promotion={kind,title:options.title||(kind===cfg.kind?cfg.title:null)||({crash:'Bakery Stock Crash',combo:'Study Buddy',rush:'Lunch Rush',rescue:'Last-call Offers'}[kind]),ids:options.ids||cfg.ids,category:options.category||cfg.category,rushType:options.rushType||'lunch',until:Math.min(hoursFor(s).close-5,s.minute+(options.duration||cfg.duration))};
- const messages={crash:'STOCK CRASH REVIEW · Eligible bakery batches evaluated against all scenario gates.',combo:s.promotion.title+' · '+s.promotion.ids.map(id=>CATALOG.find(p=>p.id===id).name).join(' & ')+' at independently confirmed prices.',rush:'RUSH · Customer arrivals rise; confirmed prices hold.',rescue:'LAST-CALL REVIEW · Evaluate remaining eligible batches once. Protected stock stays protected.'};
+ const messages={crash:'STOCK WATCH · Prices adjust at the next half-hour review.',combo:s.promotion.title+' · '+s.promotion.ids.map(id=>CATALOG.find(p=>p.id===id).name).join(' & ')+' at independently confirmed prices.',rush:'RUSH · Purchases can lift prices as stock falls.',rescue:'LAST CALL · Prices follow the half-hour review schedule. Protected stock stays protected.'};
  event(s,messages[kind],kind);s=finish(s);
- if(kind==='crash'||kind==='rescue'){
-  for(const b of [...s.batches])if(kind==='rescue'||(s.promotion.category==='all'?['Pastries','Bakery'].includes(CATALOG.find(p=>p.id===b.productId).category):CATALOG.find(p=>p.id===b.productId).category===s.promotion.category)){
-   const r=evaluateBatch(s,b.id);if(r.evaluation_completed)s=executeDemoDecision(s,b.id,r,true,true,kind+'-'+b.windowId);
-  }
- }
+
  return s;
 }
 export function comboView(s){const products=(s.promotion?.ids||settingsFor(s).deal.ids).map(id=>productView(s,id));return {active:s.promotion?.kind==='combo'&&s.promotion.until>s.minute,available:products.every(p=>p.quantity>0),products,total:products.reduce((n,p)=>n+p.price,0),regular:products.reduce((n,p)=>n+p.base,0)};}
@@ -158,7 +165,6 @@ function baseSchedule(s){
   {at:at(.35),action:'restock',id:'buffalo',quantity:6},{at:at(.375),action:'restock',id:'roast',quantity:6},
   {at:at(.6),action:'event',kind:'combo'},{at:at(.6)+5,action:'combo'},
   {at:review,action:'event',kind:'crash'},
-  ...['buffalo','roast','southwest','everything'].map(id=>({at:review+5,action:'review',id})),
   ...Array.from({length:20},(_,i)=>({at:close-105+i*5,action:'sale',id:FEATURED[i%6]})),
   {at:close-30,action:'event',kind:'rescue'}
  ].filter(e=>e.at>open&&e.at<close-5);
@@ -224,7 +230,7 @@ export function endDeal(source){const s=copy(source);s.promotion=null;event(s,'O
 
 // Preserve the saved cafe plan when upgrading the earlier 8 AM–6 PM demo.
 export function migrateState(legacy){
- if(validState(legacy))return legacy;
+ if(validState(legacy)){const s=copy(legacy);for(const b of s.batches)b.reference_units??=Math.max(1,b.physical_units);return s;}
  if(!legacy||legacy.version!==3)return null;
  const old=copy(legacy);old.version=4;old.settings={...old.settings,hours:{open:480,close:1080}};
  if(!validState(old))return null;

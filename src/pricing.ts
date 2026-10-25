@@ -1,3 +1,4 @@
+/** @deprecated Legacy continuous stock/time model. Use domain/decide.mjs for MarketBite offers. */
 /** All timestamps are UTC epoch milliseconds; all money is integer cents. */
 export interface Product {
   id: string;

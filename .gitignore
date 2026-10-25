@@ -1,2 +1,12 @@
 node_modules/
-dist/
+dist/*
+!dist/domain/
+dist/domain/*
+!dist/domain/decimal.mjs
+
+.legacy-build/
+
+.marketbite/
+!dist/workspace.html
+!dist/workspace.css
+!dist/workspace.mjs

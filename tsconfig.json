@@ -8,8 +8,11 @@
     "exactOptionalPropertyTypes": true,
     "declaration": true,
     "rootDir": ".",
-    "outDir": "dist",
+    "outDir": ".legacy-build",
     "skipLibCheck": true
   },
-  "include": ["src/**/*.ts", "test/**/*.ts"]
+  "include": [
+    "src/**/*.ts",
+    "test/**/*.ts"
+  ]
 }

@@ -7,18 +7,28 @@ Five connected browser views:
 - ?view=sustainability — resource goals, demo food movement and future pilot measurement.
 - ?view=inventory — collapsible Cafe Desk sections for hours, opening plan, fresh deliveries, recounts, offer review and deals.
 
-Run: node server.mjs (http://127.0.0.1:4173). Test: node --test test/*.test.mjs.
+Run: `npm ci`, `npm run build:pricing`, then `npm run dev` (http://127.0.0.1:4173).
+Test: `npm test` (source contract, website/model integration, and isolated legacy suite).
+Type check: `npm run typecheck`. Scenario CLI: `npm run demo`.
 Static deployment root: dist. Existing Site identity is retained in .openai/hosting.json.
 
 ## Pricing and inventory
 
-dist/pricing.mjs implements the equations/status order in the user-supplied MarketBite Pricing Specification 1.1 / Engine 2.1 using Decimal arithmetic (40-digit precision). Candidate cents round upward; fees and expectations retain decimal precision. Unknown required economics/scenario evidence returns REVIEW. Approval flags default false in the engine.
+The active pricing controller is `src/domain/dynamic.mjs`. Both browser-local and server-backed demos evaluate every **30 simulated minutes**, on the hour and half hour. Purchases accumulate between reviews; they do not immediately change the price. Staff can still preview and explicitly acknowledge a manual adjustment.
 
-The browser demo adapter in model.mjs explicitly supplies synthetic, reviewed-for-demo fixtures. These fixtures are not claims about Connections Cafe's economics or customer demand. Each batch/window may commit one evaluated HOLD or one acknowledged MARKDOWN. Restocking creates a separate fresh batch; it never relabels residual inventory. Recommendation, authorization, simulated acknowledgment and publication are separate functions/states. Failed simulated checkout updates do not publish a lower price.
+For each batch, available units are physical stock minus reservations, protected allocations and buffer stock. A fixed reference quantity is recorded when the batch is received. Window progress runs from receipt to cutoff. The target is:
 
-Physical stock, reserved units, protected allocations and buffer units are distinct. Offer stock is I-R-G-B. New offers withdraw five minutes before the configured closing time (3 PM by default); simulated observations refresh every replay tick. At closing, protected stock is recorded as transferred and remaining physical units as retained, not automatically discarded. Those are scripted ledger outcomes, not verified sustainability impact.
+`regular price × (1 − 0.45 × window progress × min(1, available / reference quantity))`
 
-Stock crash and last-call events request guarded evaluations; they do not force markdowns. Study Buddy is an independently priced food pairing, without a shared-stock bundle discount or joint optimization. Price charts show an individual batch's positive confirmed prices and stop at withdrawal. Demand is a separate scripted index.
+Target prices round upward to whole cents using exact rational arithmetic. The floor is the maximum of one cent, merchant floor, 55% of regular price, and `(sale cost + fixed order fee + required contribution) / (1 − fee fraction)`, rounded upward. An individual adjustment is limited to 5% of regular price (rounded up), except when meeting a higher binding floor requires a larger correction. Prices can fall as time passes or rise as purchases reduce unallocated stock; they never exceed regular price. This is a configurable stock/time rule, not a calibrated demand forecast or profit optimizer.
+
+The demo checkout adapter automatically acknowledges scheduled adjustments; manual recommendations still require authorization and acknowledgment. Pending or uncertain checkout operations exclude the batch from automatic updates. Checkout versions reject stale quotes; accepted orders retain their quoted price. A browser basket is quoted atomically before any later scheduled review.
+
+Offers require reviewed economics, approval, supported checkout and a fresh inventory count. Counts older than 30 minutes pause availability; new orders stop five minutes before cutoff. Server counts require staff reconciliation, while browser playback supplies synthetic observations. Restocking creates a separate fresh batch and reference quantity. At closing, protected units transfer and remaining stock is retained in the simulated ledger.
+
+Charts connect a reduced set of confirmed samples, with only an endpoint marker. They display at most 32 samples, grouped into half-hour buckets, while the exact history table retains every confirmed event. Connecting segments illustrate the trend; checkout prices remain fixed between reviews. Existing saved histories are simplified for display without deleting events.
+
+The previous scenario optimizer remains in `src/domain/decide.mjs` and `dist/pricing.mjs` for compatibility and historical tests; it no longer controls the active demos. `npm run build:pricing` generates both engines. The earlier continuous TypeScript engine remains isolated under legacy scripts.
 
 ## Limits
 
@@ -32,8 +42,28 @@ Opening plans apply on a new demo day. Receiving food creates a fresh batch with
 
 ## Verification
 
-Tests cover price rounding/floors, fees and activation, scenario caps, missing and invalid inputs, strict/inclusive gates, downside protection, weight normalization, tie-breaking, holds, idempotence, failed publication, stale execution, reserved/protected stock, new batch identity, exact basket allocation, cutoff behavior, state validation and a conserved day replay. Browser checks cover the TV, mobile search/basket/category flow, 3D renderer and event controls.
+`npm test` covers the archived scenario contract, active dynamic targets/floors, bidirectional changes, half-hour timing, simplified charts, exact basket allocation, authorization and failed publication, stale execution, reservation and fulfillment, protected stock, separate fresh batches, persistence and conserved deterministic day replay. `npm run typecheck` checks TypeScript compatibility.
 
-Vendors: Three.js 0.160.1 (MIT); Decimal.js 10.4.3 (MIT). Both are served locally; license notices remain in the files.
+Vendors: Three.js 0.160.1 (MIT); Decimal.js 10.4.3 (MIT). Both are served locally; license notices remain in the files. Fonts: DM Sans and Manrope (SIL OFL, notices in assets), with Roboto Slab branding.
 
-Cafe hours default to 7 AM–3 PM. Cafe Desk accepts same-day hours at least two hours apart; applying them starts a new day with the saved opening plan. Replay, charts, review windows, arrivals, and closing follow those hours. Rushes outside opening hours stay saved but do not run. Earlier saved plans migrate to the new hours, keeping menu prices and rush/deal settings; the old run is backed up locally. Fonts: DM Sans and Manrope (SIL OFL, notices in assets), with Roboto Slab branding.
+Cafe hours default to 7 AM–3 PM. Cafe Desk accepts same-day hours at least two hours apart; applying them starts a new day with the saved opening plan. Replay, arrivals, pricing and closing follow those hours.
+
+## Shared server demo
+
+The existing homepage and its five browser-local views remain at `/`. The server-backed flow uses `/shop`, `/market`, `/staff`, and `/offers/:offerId`. These routes share one authoritative session; the older homepage simulation has separate browser-local state.
+
+Run `npm ci` and `npm run dev`, then open Shop, Market, and Staff in separate tabs at http://127.0.0.1:4173. This flow requires the Node server; a static `dist` deployment alone cannot serve its API. Commands serialize on the server, persist to `.marketbite/session.json`, and broadcast full revisioned snapshots over SSE. Reconnecting tabs receive the current snapshot. Reset creates a new generation and invalidates old commands.
+
+Walkthrough: at Staff, reset, select the first batch, choose the stock/time preview, and review pricing. Authorize the recommendation: Market retains the regular price while checkout is pending. Acknowledge it to publish the markdown. In Market select that batch and follow “Buy this exact offer”; confirm a simulated purchase, then fulfill its reservation at Staff. Both availability displays and the exchange tape update. To demonstrate failure, reject a publication or simulate a timeout and reconcile it. Advancing 31 minutes makes opening counts stale; reconcile counts explicitly to restore eligibility. New orders close five minutes before collection cutoff.
+
+The shared flow uses synthetic products and economics, no real payments, and no staff authentication. It reserves accepted orders until explicit fulfillment. Keyboard focus and form drafts survive live updates; narrow layouts expose connection status and a skip link reaches the main content. Browser acceptance results and screenshots are recorded in [docs/verification/browser-acceptance.md](docs/verification/browser-acceptance.md), including remaining accessibility checks.
+
+The Market route includes a market-wide confirmed-price trend chart: toggle dollars or percentage change from regular price, select a batch in its legend, or expand the exact price-event table. Each delivery retains its own batch history. Pending recommendations never enter the graph; lines stop at cutoff, count expiry, or staff withdrawal.
+
+## Secondary Exchange TV
+
+From the existing homepage, choose **Exchange TV** in the navigation or beside Cafe Display’s TV launch button. `/?view=exchange` provides preview, previous/next page, pause rotation, and fullscreen controls. `/?display=exchange` opens the clean 16:9 screen. The 24-food menu rotates across two pages of twelve every 15 seconds; reduced-motion preference starts rotation paused.
+
+This secondary TV shares the existing browser-local Cafe Desk/playback state, just like Cafe Display. It shows confirmed batch prices, savings from regular price, available quantities, and small trend charts. Each chart is relative to that batch’s regular price. Fresh stock never joins an old batch’s line. Its countdown is for page rotation, not a promised price change. The server-backed `/market` session remains separate.
+
+Exchange TV’s simulation preview includes play/pause, replay, a five-minute step, speed, and a day scrubber. These use the same replay engine as Cafe Display; seeking rebuilds from the saved opening plan. Playback controls are hidden in standalone TV (`?display=exchange`) and fullscreen presentation.
