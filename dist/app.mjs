@@ -18,14 +18,15 @@ async function change(fn,{stop=true}={}){
  if(navigator.locks)await navigator.locks.request(KEY,run);else run();
 }
 function showView(next,push=true){
- view=['home','tv','mobile','simulation','sustainability','inventory'].includes(next)?next:'home';
- for(const id of ['home','tv','mobile','simulation','sustainability','inventory'])$('view-'+id).hidden=id!==view;
+ view=next==='simulation'?'tv':['home','tv','mobile','sustainability','inventory'].includes(next)?next:'home';
+ for(const id of ['home','tv','mobile','simulation','sustainability','inventory'])$('view-'+id).hidden=id==='simulation'?view!=='tv'||displayOnly:id!==view;
  document.querySelectorAll('.workspace-bar [data-view]').forEach(a=>{if(a.dataset.view===view)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
  if(push&&!displayOnly){history.pushState({},'', '?view='+view);window.scrollTo(0,0);}
- if(view==='simulation'){if(!caseScene)caseScene=createCase($('case-stage'));caseScene?.setState(state);caseScene?.resize();}
+ if(view==='tv'&&!displayOnly){if(!caseScene)caseScene=createCase($('case-stage'));caseScene?.setState(state);caseScene?.resize();}
  if(view==='tv')resize();render();
 }
-document.querySelectorAll('[data-view]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();showView(a.dataset.view);if(a.hash)$(a.hash.slice(1))?.scrollIntoView({behavior:'smooth'});}));
+function revealSection(id){const target=$(id);if(!target)return;for(let node=target;node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;target.scrollIntoView({behavior:'smooth',block:'start'});}
+document.querySelectorAll('[data-view]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();showView(a.dataset.view);if(a.hash)revealSection(a.hash.slice(1));}));
 window.addEventListener('popstate',()=>showView(new URLSearchParams(location.search).get('view')||'home',false));
 if(displayOnly){document.body.classList.add('tv-only');$('tv-tools').hidden=false;}
 function resize(){const r=$('tv-stage').getBoundingClientRect();if(!r.width)return;const scale=Math.min(r.width/1920,r.height/1080);$('tv').style.transform=document.fullscreenElement===$('tv-stage')?'translate(-50%,-50%) scale('+scale+')':'scale('+scale+')';}
@@ -74,7 +75,7 @@ $('inventory-list').onclick=e=>{
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.sell)change(s=>sell(s,b.dataset.sell));
  if(b.dataset.restock)change(s=>restock(s,b.dataset.restock));
- if(b.dataset.review){pause();showView('inventory');selectedBatch=productView(state,b.dataset.review).batchId||state.batches.find(bat=>bat.productId===b.dataset.review).id;$('decision-batch').value=selectedBatch;$('chart-batch').value=selectedBatch;evaluate();$('decision-result').scrollIntoView({behavior:'smooth',block:'center'});}
+ if(b.dataset.review){pause();showView('inventory');selectedBatch=productView(state,b.dataset.review).batchId||state.batches.find(bat=>bat.productId===b.dataset.review).id;$('decision-batch').value=selectedBatch;$('chart-batch').value=selectedBatch;evaluate();revealSection('decision-result');}
 };
 function renderActivity(){
  $('activity-list').replaceChildren(...state.events.slice(0,15).map(e=>{const li=document.createElement('li'),t=document.createElement('time'),span=document.createElement('span');t.textContent=simTime(e.at);span.textContent=e.text;if(e.kind==='drop')span.className='event-drop';li.append(t,span);return li;}));
@@ -128,19 +129,18 @@ $('publish-price').onclick=()=>{const d=decision;if(!d)return;change(s=>executeD
 $('fail-price').onclick=()=>{const d=decision;if(d)change(s=>executeDemoDecision(s,d.batchId,d,true,false,'failed-'+d.windowId));};
 $('save-allocations').onclick=()=>change(s=>setAllocations(s,$('decision-batch').value,Number($('reserved').value),Number($('protected').value),Number($('buffer').value))).then(()=>{decision=null;renderDecision();});
 $('scenario-profile').onchange=()=>{decision=null;renderDecision();};
-function updatePlayback(){for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).textContent=playing?'Pause':'Play';for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).disabled=!playing&&state.minute>=hoursFor(state).close;$('run-day').textContent=playing?'↻ Restart day':'▶ Replay day';}
+function updatePlayback(){for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).textContent=playing?'Pause':'Play';for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).disabled=!playing&&state.minute>=hoursFor(state).close;$('run-day').textContent=playing?'Restart day':'Replay day';}
 function pause(){clearInterval(timer);timer=null;playing=false;updatePlayback();}
 function start(){if(state.minute>=hoursFor(state).close)return;clearInterval(timer);playing=true;updatePlayback();timer=setInterval(async()=>{await change(s=>stepSimulation(s,5),{stop:false});if(state.minute>=hoursFor(state).close)pause();},60000/((hoursFor(state).close-hoursFor(state).open)/5)/Number($('speed').value));}
 $('run-day').onclick=()=>change(s=>startPlannedDay(s)).then(()=>{decision=null;start();});
 $('pause-day').onclick=()=>playing?pause():start();
 $('speed').onchange=()=>{if(playing)start();};
 $('reset').onclick=()=>{basket={};decision=null;change(s=>initialState('deals',settingsFor(s)));};
-$('day-slider').oninput=e=>{$('simulation-time').textContent=simTime(Number(e.target.value));};
-$('day-slider').onchange=e=>{basket={};decision=null;change(s=>snapshotAt(Number(e.target.value),settingsFor(s)));};
+$('day-slider').oninput=e=>{const minute=Number(e.target.value);basket={};decision=null;change(s=>snapshotAt(minute,settingsFor(s)));};
 document.querySelectorAll('[data-event]').forEach(button=>button.onclick=async()=>{
  const kind=button.dataset.event;await change(s=>triggerEvent(s,kind,kind==='combo'?{title:'Study Buddy',ids:['buffalo','blueberry']}:{ }));toast(kind==='crash'||kind==='rescue'?'Eligible batches reviewed. Confirmed prices stay in place.':'Sandwich & muffin pairing is on the mobile menu.');
 });
-$('open-deals').onclick=()=>{showView('inventory');$('deal-desk').scrollIntoView({behavior:'smooth'});};
+$('open-deals').onclick=()=>{showView('inventory');revealSection('deal-desk');};
 function renderMobile(){
  const search=$('menu-search').value.trim().toLowerCase();
  $('mobile-open').textContent=state.minute<hoursFor(state).close-5?'Offers available · demo '+simTime(state.minute):'Offers ended for today';
@@ -148,6 +148,7 @@ function renderMobile(){
  const drops=CATALOG.map(p=>productView(state,p.id)).filter(p=>p.quantity>0&&p.saving>0);
  $('mobile-drops').hidden=!drops.length;
  $('mobile-drops').innerHTML=drops.length?'<div class="mobile-drops-heading"><h3>Price drops now</h3><span>'+drops.length+' FOODS</span></div><p>'+drops.slice(0,2).map(p=>escape(p.name)+' · '+money(p.price)+' <s>'+money(p.base)+'</s>').join('<br>')+'</p><button id="show-price-drops">'+(dealsOnly?'Show the full menu':'See all '+drops.length+' price drops')+' →</button>':'';
+ renderAlerts(drops);
  const promo=state.promotion,c=comboView(state);
  $('mobile-promotion').innerHTML=promo?'<div class="mobile-deal"><strong>'+escape(promo.title||({crash:'The Bakery Stock Crash',combo:'Study Buddy Pairing',rush:'Rush Is On',rescue:'Last-call Offers'}[promo.kind]))+'</strong><p>'+({crash:'Freshly confirmed savings on eligible bakery batches. Catch your favorite while it lasts.',combo:c.products.map(p=>escape(p.name)).join(' & ')+' · '+money(c.total)+' together. Each item keeps its confirmed price.',rush:'The '+escape(promo.rushType||'lunch')+' rush is on. Confirmed prices hold.',rescue:'Find eligible surplus offers before the selling window closes.'}[promo.kind])+'</p><p>Event ends at '+simTime(promo.until)+'</p>'+(promo.kind==='combo'?'<button id="add-combo" '+(!c.available?'disabled':'')+'>'+(c.available?'Add both to basket':'Pairing unavailable')+'</button>':'')+'</div>':'';
  const matches=CATALOG.filter(p=>(!search||(p.name+' '+p.symbol+' '+p.category).toLowerCase().includes(search))&&(!dealsOnly||(productView(state,p.id).saving>0&&productView(state,p.id).quantity>0)));
@@ -159,6 +160,21 @@ function renderMobile(){
  }).join(''):'<p class="empty-menu">No matching foods. Try another search or clear the price-drop filter.</p>';
  $('deals-only').setAttribute('aria-pressed',String(dealsOnly));renderBasket();
 }
+function renderAlerts(drops){
+ const best=[...drops].sort((a,b)=>b.saving-a.saving)[0],promo=state.promotion;
+ const eventActive=promo&&['crash','rescue','combo'].includes(promo.kind);
+ const eventTitle=eventActive?(promo.title||({crash:'Bakery stock crash',rescue:'Last-call offers',combo:'Food pairing'}[promo.kind])):'Catch the next stock crash';
+ const eventCopy=eventActive?'On the menu until '+simTime(promo.until)+'. Check the confirmed prices and remaining stock.':'Bakery price drops and last-call offers appear here when launched from Cafe Display.';
+ const cards=[
+  ['↓','PRICE DROP',best?escape(best.name)+' · '+money(best.price):'Your next deal starts here',best?'Save '+money(best.saving)+' from '+money(best.base)+'. '+best.offerQuantity+' available at this price.':'No discounted food is available at this point in the day. Play the day to watch for new offers.'],
+  ['↘',eventActive?'ON THE MENU':'MARKET WATCH',escape(eventTitle),eventCopy],
+  ['&','SAVE MORE. WASTE LESS.',best?'Save '+money(best.saving)+'. Give good food a chance.':'Good food deserves a buyer.',(best?'Choose an available surplus offer to help food move before its selling window ends. ':'Timely offers help prepared food find a buyer. ')+state.surplusSold+' surplus items sold in this demo.'],
+  ['↗','FOLLOW THE PRICE','Find the best deal available now.','Compare current savings with the Price drops filter. Prices and stock update with the cafe simulation; future prices and availability are not guaranteed.']
+ ];
+ $('alerts-time').textContent='Menu updates · '+simTime(state.minute);
+ $('alert-bubbles').innerHTML=cards.map(([icon,label,title,body])=>'<article class="alert-bubble"><span class="alert-icon" aria-hidden="true">'+icon+'</span><div><span class="eyebrow">'+label+'</span><h3>'+title+'</h3><p>'+body+'</p></div></article>').join('');
+}
+$('alerts-show-deals').onclick=()=>{dealsOnly=true;$('menu-search').value='';renderMobile();revealSection('phone-scroll');};
 $('menu-search').oninput=renderMobile;
 $('deals-only').onclick=()=>{dealsOnly=!dealsOnly;renderMobile();};
 $('mobile-drops').onclick=e=>{if(e.target.closest('#show-price-drops')){dealsOnly=!dealsOnly;$('menu-search').value='';renderMobile();$('mobile-menu').scrollIntoView({behavior:'smooth',block:'start'});}};
@@ -216,7 +232,7 @@ $('hours-form').oninput=()=>{hoursDirty=true;$('hours-status').textContent='Unsa
 $('hours-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=structuredClone(settingsFor(s));cfg.hours={open:minuteInput($('hours-open').value),close:minuteInput($('hours-close').value)};const next=startPlannedDay(s,cfg);hoursDirty=false;decision=null;basket={};$('hours-status').textContent='Hours applied · new day started';toast('Cafe hours updated on every screen.');return next;});};
 const settingsCopy=()=>structuredClone(settingsFor(state));
 function renderHome(){
- $('home-quotes').innerHTML=FEATURED.map(id=>{const p=productView(state,id);return '<div class="quote-row"><span><b>'+p.symbol+'</b><small>'+escape(p.name)+'</small></span><strong>'+(p.quantity?money(p.price):'—')+'</strong><em>'+(p.quantity&&p.saving?'Save '+money(p.saving):'—')+'</em></div>';}).join('');
+ $('home-quotes').innerHTML=['buffalo','blueberry'].map((id,i)=>{const p=productView(state,id);return '<div class="campus-quote '+(i?'campus-bakery':'')+'">'+(i?'<img src="'+p.image+'" alt="'+escape(p.name)+'">':'')+'<div><span class="eyebrow">'+(i?'FROM THE BAKERY':p.symbol+' / ON THE MENU')+'</span><h3>'+escape(p.name)+'</h3><span class="campus-availability">'+(p.quantity?p.offerQuantity+' at this price':'Check back for fresh stock')+'</span></div><div class="campus-price"><strong>'+(p.quantity?money(p.price):'Sold out')+'</strong>'+(p.quantity?(p.saving?'<span><s>'+money(p.base)+'</s> · Save '+money(p.saving)+'</span>':'<span>Regular price</span>'):'')+'</div></div>';}).join('');
 }
 function renderDesk(){
  $('desk-time').textContent='DEMO TIME · '+simTime(state.minute);
@@ -261,8 +277,7 @@ $('deal-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=settingsCopy
 $('end-deal').onclick=()=>change(s=>endDeal(s));
 $('mobile-replay').onclick=$('run-day').onclick;$('mobile-mini-replay').onclick=$('run-day').onclick;
 $('mobile-pause').onclick=$('pause-day').onclick;$('mobile-mini-play').onclick=$('pause-day').onclick;
-$('mobile-day-slider').oninput=e=>$('mobile-demo-time').textContent=simTime(Number(e.target.value));
-$('mobile-day-slider').onchange=$('day-slider').onchange;
+$('mobile-day-slider').oninput=$('day-slider').oninput;
 const d=settingsFor(state).deal;$('deal-kind').value=d.kind;$('deal-title').value=d.title;$('deal-duration').value=d.duration;$('deal-first').value=d.ids[0];$('deal-second').value=d.ids[1];$('deal-category').value=d.category;
 dealFields();rushDefaults();receiveDefaults();
 clock();setInterval(clock,1000);if(!read())save();showView(view,false);

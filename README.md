@@ -1,12 +1,11 @@
 # MarketBite / Connections Cafe
 
-Six connected browser views:
+Five connected browser views:
 - ?view=home — company goals, sustainability story and verified team LinkedIn links.
-- ?view=tv — 16:9 menu studio; ?display=1 opens the clean TV display.
-- ?view=simulation — adjustable 3D case, day replay, customizable breakfast/lunch/dinner rushes, events and charts.
-- ?view=mobile — scrollable food menu, search, category sheet, deals, day playback and simulated basket.
+- ?view=tv — 16:9 menu with the adjustable 3D case, shared time slider, customizable rushes, events and charts underneath. ?display=1 opens the clean TV display; legacy ?view=simulation links open Cafe Display.
+- ?view=mobile — scrollable food menu, search, category sheet, deals, day playback, simulated basket and live alert bubbles below the preview.
 - ?view=sustainability — resource goals, demo food movement and future pilot measurement.
-- ?view=inventory — Cafe Desk: opening plan, fresh deliveries, recounts, offer review and expanded deals.
+- ?view=inventory — collapsible Cafe Desk sections for hours, opening plan, fresh deliveries, recounts, offer review and deals.
 
 Run: node server.mjs (http://127.0.0.1:4173). Test: node --test test/*.test.mjs.
 Static deployment root: dist. Existing Site identity is retained in .openai/hosting.json.
