@@ -10,3 +10,7 @@ dist/domain/*
 !dist/workspace.html
 !dist/workspace.css
 !dist/workspace.mjs
+
+!dist/assets/
+dist/assets/*
+!dist/assets/rochester-autumn.jpg

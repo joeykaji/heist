@@ -204,7 +204,7 @@ $('basket-open').onclick=()=>{renderBasket();$('basket-dialog').showModal();};
 $('basket-items').onclick=e=>{const id=e.target.closest('[data-remove]')?.dataset.remove;if(!id)return;if(--basket[id]===0)delete basket[id];renderBasket();};
 $('checkout').onclick=async()=>{let success=false;await change(s=>{const result=basketQuote(s,basket);success=true;return result.state;});if(success){basket={};renderBasket();$('basket-dialog').close();toast('Demo purchase complete. Case inventory updated.');}};
 function render(previous){
- exchange.update(state);renderHours();renderSustainability();renderHome();renderDesk();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
+ exchange.update(state);renderHours();renderSustainability();renderDesk();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
  $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-live-time').textContent='DEMO / '+simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;$('exchange-slider').value=state.minute;$('exchange-slider').setAttribute('aria-valuetext',simTime(state.minute));$('exchange-playback-time').textContent=simTime(state.minute);$('exchange-forward').disabled=state.minute>=hoursFor(state).close;
  $('total-stock').textContent=state.batches.reduce((n,b)=>n+offerAvailable(state,b),0);$('total-sold').textContent=state.sold;updatePlayback();caseScene?.setState(state);
 }
@@ -238,9 +238,6 @@ function renderSustainability(){
 $('hours-form').oninput=()=>{hoursDirty=true;$('hours-status').textContent='Unsaved hours';};
 $('hours-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=structuredClone(settingsFor(s));cfg.hours={open:minuteInput($('hours-open').value),close:minuteInput($('hours-close').value)};const next=startPlannedDay(s,cfg);hoursDirty=false;decision=null;basket={};$('hours-status').textContent='Hours applied · new day started';toast('Cafe hours updated on every screen.');return next;});};
 const settingsCopy=()=>structuredClone(settingsFor(state));
-function renderHome(){
- $('home-quotes').innerHTML=['buffalo','blueberry'].map((id,i)=>{const p=productView(state,id);return '<div class="campus-quote '+(i?'campus-bakery':'')+'">'+(i?'<img src="'+p.image+'" alt="'+escape(p.name)+'">':'')+'<div><span class="eyebrow">'+(i?'FROM THE BAKERY':p.symbol+' / ON THE MENU')+'</span><h3>'+escape(p.name)+'</h3><span class="campus-availability">'+(p.quantity?p.offerQuantity+' at this price':'Check back for fresh stock')+'</span></div><div class="campus-price"><strong>'+(p.quantity?money(p.price):'Sold out')+'</strong>'+(p.quantity?(p.saving?'<span><s>'+money(p.base)+'</s> · Save '+money(p.saving)+'</span>':'<span>Regular price</span>'):'')+'</div></div>';}).join('');
-}
 function renderDesk(){
  $('desk-time').textContent='DEMO TIME · '+simTime(state.minute);
  const cfg=settingsFor(state),signature=JSON.stringify(cfg);
@@ -288,3 +285,41 @@ $('mobile-day-slider').oninput=$('day-slider').oninput;
 const d=settingsFor(state).deal;$('deal-kind').value=d.kind;$('deal-title').value=d.title;$('deal-duration').value=d.duration;$('deal-first').value=d.ids[0];$('deal-second').value=d.ids[1];$('deal-category').value=d.category;
 dealFields();rushDefaults();receiveDefaults();
 clock();setInterval(clock,1000);if(!read())save();showView(view,false);
+
+// A small illustrative market, independent of the cafe's shared simulation.
+const miniFoods=[
+ {name:'Buffalo Chicken',symbol:'BUFF',base:899,stock:12,prices:[899,849,799,749,699,729]},
+ {name:'Blueberry Muffin',symbol:'BLUE',base:399,stock:18,prices:[399,379,349,329,299,319]},
+ {name:'Turkey Club',symbol:'TCLB',base:949,stock:9,prices:[949,899,849,799,829,779]},
+ {name:'Chocolate Cookie',symbol:'CHOC',base:299,stock:22,prices:[299,279,259,239,219,229]}
+];
+let miniTick=0,miniPaused=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+const miniNews=['Surplus meets a better price.','Prices ease as surplus becomes available.','A better deal brings the next bite closer.','More meals sold. Less food left behind.','Demand picks up. Prices adjust with it.','Small price moves. A bigger opportunity.'];
+function renderMiniMarket(){
+ const step=miniTick%6;
+ $('mini-market-time').textContent=simTime(720+step*15);
+ $('mini-market-news').textContent=miniNews[step];
+ const ticker=miniFoods.map(food=>{const price=food.prices[step],up=price>food.prices[Math.max(0,step-1)];return food.symbol+' <'+(up?'em':'b')+'>'+(up?'▲':'▼')+' '+money(price)+'</'+(up?'em':'b')+'> &nbsp; ';}).join('');
+ document.querySelector('.mini-market-ticker>div').innerHTML=ticker+ticker;
+ $('mini-market-rows').innerHTML=miniFoods.map(food=>{
+  const price=food.prices[step],previous=food.prices[Math.max(0,step-1)],change=price-previous;
+  const history=food.prices.slice(0,step+1),x=i=>6+i*21.6,y=p=>64-(p/food.base)*48;
+  let path='M'+x(0)+' '+y(history[0]);
+  history.slice(1).forEach((p,i)=>{path+=' H'+x(i+1)+' V'+y(p);});
+  if(step===0)path+=' H24';
+  return '<article class="mini-market-row"><div><strong>'+food.name+'</strong><small>'+food.symbol+' · '+(food.stock-step)+' available</small></div><div class="mini-market-price"><strong>'+money(price)+'</strong><small class="'+(change>0?'mini-market-rise':'')+'">'+(change===0?'Opening price':(change>0?'↑ ':'↓ ')+money(Math.abs(change)))+'</small></div><div class="mini-market-chart"><svg viewBox="0 0 120 74" role="img" aria-label="'+food.name+' illustrative price history"><path class="mini-grid" d="M6 16H114 M6 40H114 M6 64H114"/><path class="mini-line" d="'+path+'"/><circle cx="'+(step?x(step):24)+'" cy="'+y(price)+'" r="3"/></svg></div></article>';
+ }).join('');
+ $('mini-market-pause').textContent=miniPaused?'Play':'Pause';
+ $('mini-market-pause').setAttribute('aria-pressed',String(miniPaused));
+ $('mini-market-pause').setAttribute('aria-label',miniPaused?'Play miniature exchange':'Pause miniature exchange');
+}
+$('mini-market-pause').onclick=()=>{miniPaused=!miniPaused;renderMiniMarket();};
+renderMiniMarket();
+setInterval(()=>{if(miniPaused||document.hidden||$('view-home').hidden)return;miniTick++;renderMiniMarket();},4000);
+
+// The sandwich story can pause independently of the exchange preview.
+$('journey-pause').onclick=()=>{
+ const paused=$('bite-journey').classList.toggle('journey-paused');
+ $('journey-pause').textContent=paused?'Play':'Pause';
+ $('journey-pause').setAttribute('aria-label',paused?'Play animation':'Pause animation');
+};
