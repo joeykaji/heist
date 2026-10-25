@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {decide,DEFAULT_POLICY,candidatePrices} from '../dist/pricing.mjs';
-import {CATALOG,OPEN,CLOSE,initialState,validState,productView,rawAvailable,offerAvailable,sell,restock,evaluateBatch,executeDemoDecision,observeStock,setAllocations,advance,snapshotAt,stepSimulation,triggerEvent,basketQuote} from '../dist/model.mjs';
+import {CATALOG,OPEN,CLOSE,initialState,validState,productView,rawAvailable,offerAvailable,sell,restock,evaluateBatch,executeDemoDecision,observeStock,setAllocations,advance,snapshotAt,stepSimulation,triggerEvent,basketQuote,defaultSettings,settingsFor,updateSettings,startPlannedDay,receiveStock,recountBatch,jumpToRush,comboView,buyCombo,endDeal,validateSettings} from '../dist/model.mjs';
 const fixture=()=>({label:'Test',original_cents:600,current_cents:600,physical_units:10,reserved_units:0,protected_units:0,buffer_units:0,fee_fraction:'0',sale_cost_cents:0,order_fee_cents:0,min_unit_contribution_cents:0,merchant_floor_cents:1,activation_cents:0,minutes_to_cutoff:60,fulfillment_buffer_minutes:5,count_age_minutes:0,safe_and_approved:true,checkout_supported:true,surplus_eligible:true,demand_reviewed:true,economics_reviewed:true,markdowns_used:0,window_committed:false});
 const scenario=(demand={600:1,510:2,420:3,330:4})=>({label:'Reviewed',weight:'1',demand,terminal_value_cents:0,other_loss_cents:{600:0,510:0,420:0,330:0}});
 test('24 unique food items use supplied menu prices; no drinks',()=>{assert.equal(CATALOG.length,24);assert.equal(new Set(CATALOG.map(p=>p.symbol)).size,24);for(const p of CATALOG)assert.equal(p.base,p.category==='Breakfast Sandwiches'?399:p.category==='Lunch Sandwich'?899:p.category==='Bagels'?219:p.id==='doughnut'?365:['apple','cherry','cheese'].includes(p.id)?385:415);});
@@ -25,3 +25,44 @@ test('basket quote allocates exact batch prices and is atomic on insufficient st
 test('offers close at buffer, graph retains positive events and stock reconciles at close',()=>{const s=advance(initialState(),115);assert.equal(s.minute,1075);assert.ok(CATALOG.every(p=>productView(s,p.id).quantity===0));assert.throws(()=>sell(s,'buffalo'));assert.throws(()=>restock(s,'buffalo'));assert.ok(s.batches.every(b=>b.priceEvents.every(e=>e.price>0)));const end=advance(s,5);assert.equal(end.batches.reduce((n,b)=>n+b.physical_units,0),0);assert.equal(end.transferred,1);});
 test('whole day deterministic, conserved inventory, valid states and at most one markdown',()=>{let s=initialState('opening');const stock=s.batches.reduce((n,b)=>n+b.physical_units,0);for(let t=OPEN;t<CLOSE;t+=5){s=stepSimulation(s,5);assert.ok(validState(s));assert.ok(s.batches.every(b=>b.markdowns_used<=1&&rawAvailable(b)>=0));}const direct=snapshotAt(CLOSE);assert.equal(s.sold,direct.sold);assert.equal(s.revenue,direct.revenue);assert.equal(s.sold+s.transferred+s.retained+s.discarded,stock+12);assert.ok(s.surplusSold>0);});
 test('corrupted persisted state is rejected',()=>{assert.ok(validState(initialState()));for(const s of [null,{}, {...initialState(),minute:'960'},{...initialState(),batches:[{id:'x'}]},{...initialState(),policy:{max_markdowns:4}}])assert.equal(validState(s),false);});
+
+
+test('opening plan applies custom stock, price and floor only when a new day starts',()=>{
+ const original=initialState(),cfg=defaultSettings();cfg.menu.southwest={stock:14,price:450,floor:250,cost:80};
+ const saved=updateSettings(original,cfg);assert.equal(productView(saved,'southwest').price,399);assert.equal(original.settings.menu.southwest.price,399);
+ const next=startPlannedDay(saved);assert.equal(next.minute,OPEN);assert.equal(productView(next,'southwest').quantity,14);assert.equal(productView(next,'southwest').price,450);assert.equal(next.batches[0].merchant_floor_cents,250);assert.ok(validState(next));
+});
+
+test('receiving custom-priced food preserves existing markdown identity and history',()=>{
+ const original=initialState(),old=structuredClone(original.batches[5]);const next=receiveStock(original,'buffalo',11,950,600,100);
+ assert.deepEqual(next.batches[5],old);assert.equal(next.batches.at(-1).physical_units,11);assert.equal(next.batches.at(-1).original_cents,950);assert.equal(next.batches.at(-1).window_committed,false);assert.equal(productView(next,'buffalo').price,630);assert.ok(validState(next));
+ const after=basketQuote(next,{buffalo:productView(next,'buffalo').offerQuantity}).state;assert.equal(productView(after,'buffalo').price,950);assert.equal(productView(after,'buffalo').base,950);
+});
+
+test('recounts retain committed pricing and cannot consume allocated stock',()=>{
+ const original=initialState(),next=recountBatch(original,'batch-5',12);assert.equal(next.batches[5].id,original.batches[5].id);assert.deepEqual(next.batches[5].priceEvents,original.batches[5].priceEvents);assert.ok(next.batches[5].window_committed);assert.equal(productView(next,'buffalo').quantity,11);assert.throws(()=>recountBatch(original,'batch-5',0));assert.ok(validState(next));
+});
+
+test('custom rush jumps to its start and attempts configured arrivals across duration',()=>{
+ const cfg=defaultSettings();cfg.rushes.breakfast={at:500,orders:7,duration:10};
+ const start=jumpToRush(initialState('opening',cfg),'breakfast');assert.equal(start.minute,500);assert.equal(start.promotion.rushType,'breakfast');
+ const end=stepSimulation(start,10);assert.equal(end.sold-start.sold,7);assert.equal(end.minute,510);assert.ok(validState(end));
+ const backwards=jumpToRush(initialState('deals',cfg),'breakfast');assert.equal(backwards.minute,500);assert.equal(backwards.sold,0);assert.throws(()=>jumpToRush(start,'unknown'));
+});
+
+test('configured pairing buys the selected foods at confirmed prices and announcement ends cleanly',()=>{
+ const cfg=defaultSettings();cfg.deal={kind:'combo',title:'Morning Pair',duration:20,category:'Bagels',ids:['sesame','banana']};
+ const s=triggerEvent(initialState('opening',cfg),'combo'),c=comboView(s);assert.deepEqual(c.products.map(p=>p.id),['sesame','banana']);assert.equal(c.total,634);
+ const bought=buyCombo(s);assert.equal(bought.sold,2);assert.equal(bought.revenue,634);assert.equal(productView(bought,'sesame').quantity,7);const ended=endDeal(bought);assert.equal(comboView(ended).active,false);assert.equal(ended.revenue,634);
+});
+
+test('custom plan replay remains deterministic and conserves food',()=>{
+ const cfg=defaultSettings();cfg.menu.buffalo.stock=20;cfg.menu.buffalo.price=1000;cfg.rushes.lunch={at:700,orders:28,duration:50};
+ let s=initialState('opening',cfg);const stock=s.batches.reduce((n,b)=>n+b.physical_units,0);for(let i=OPEN;i<CLOSE;i+=5)s=stepSimulation(s,5);
+ const direct=snapshotAt(CLOSE,cfg);assert.equal(s.sold,direct.sold);assert.equal(s.revenue,direct.revenue);assert.equal(s.sold+s.retained+s.transferred+s.discarded,stock+12);assert.ok(validState(s));
+});
+
+test('invalid editable settings and corrupted promotion references are rejected',()=>{
+ for(const mutate of [c=>c.menu.southwest.stock=-1,c=>c.menu.southwest.floor=500,c=>c.rushes.dinner.at=1070,c=>c.rushes.breakfast.orders=101,c=>c.deal.ids=['banana','banana']]){const c=defaultSettings();mutate(c);assert.throws(()=>validateSettings(c));}
+ for(const promotion of [{kind:'combo',until:1000,ids:['missing','banana']},{kind:'combo',until:1000,ids:'bad'},{kind:'rush',until:1000,rushType:'other'}])assert.equal(validState({...initialState(),promotion}),false);
+});

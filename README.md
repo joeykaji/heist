@@ -1,9 +1,11 @@
 # MarketBite / Connections Cafe
 
-Three connected browser views:
+Five connected browser views:
+- ?view=home — company goals, sustainability story and verified team LinkedIn links.
 - ?view=tv — 16:9 menu studio; ?display=1 opens the clean TV display.
-- ?view=simulation — adjustable 3D case, day replay, inventory, events and pricing diagnostics.
-- ?view=mobile — scrollable food menu, search, category sheet, deals and simulated basket.
+- ?view=simulation — adjustable 3D case, day replay, customizable breakfast/lunch/dinner rushes, events and charts.
+- ?view=mobile — scrollable food menu, search, category sheet, deals, day playback and simulated basket.
+- ?view=inventory — Cafe Desk: opening plan, fresh deliveries, recounts, offer review and expanded deals.
 
 Run: node server.mjs (http://127.0.0.1:4173). Test: node --test test/*.test.mjs.
 Static deployment root: dist. Existing Site identity is retained in .openai/hosting.json.
@@ -22,9 +24,11 @@ Stock crash and last-call events request guarded evaluations; they do not force 
 
 Browser-local prototype, no POS, Grubhub, payment, actual orders, or cross-device service. localStorage synchronizes tabs on one origin; Web Locks serialize supported-browser mutations. No claim of real-world approval, demand calibration, carbon savings, or production checkout readiness. Accepted demo purchases are fulfilled immediately at the quoted batch price; operational cancellations, refunds and a durable authoritative ledger require a server/POS integration.
 
-Menu data comes from the supplied screenshots; duplicate Muffin/Chocolate Croissant listings were consolidated. All distinct food products are included; drinks are excluded. AI-generated food photos are representative, and bagel flavors share a category photo. Logos are user-supplied. image-notes.txt and image-prompts.json describe image provenance.
+Menu data comes from the supplied screenshots; duplicate Muffin/Chocolate Croissant listings were consolidated. All distinct food products are included; drinks are excluded. AI-generated food photos are representative, and each bagel variety has an individual image. Logos are user-supplied. image-notes.txt and image-prompts.json describe image provenance.
 
-The 3D scene shows nine representative foods, up to eight individual models per food. Additional units are explicitly counted as back stock; the full menu inventory appears in the inventory panel.
+The 3D scene shows nine representative foods, up to eight individual models per food. Additional units are explicitly counted as back stock; the full menu inventory appears at the Cafe Desk. Sandwiches occupy the bottom and middle shelves; pastries occupy the top.
+
+Opening plans apply on a new demo day. Receiving food creates a fresh batch with editable price, floor and cost; existing batches retain their confirmed price and commitment history. Rushes schedule 1–100 attempted arrivals over 5–120 minutes. Moving backward rebuilds from the saved plan. Pairing, bakery review and last-call announcements share the same confirmed prices across all views.
 
 ## Verification
 

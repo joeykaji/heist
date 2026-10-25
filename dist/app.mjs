@@ -1,8 +1,8 @@
-import {CATALOG,CATEGORIES,FEATURED,OPEN,CLOSE,money,simTime,initialState,validState,productView,offerAvailable,rawAvailable,sell,restock,evaluateBatch,executeDemoDecision,observeStock,setAllocations,demoScenarios,triggerEvent,comboView,buyCombo,basketQuote,applyTicker,stepSimulation,snapshotAt,demand} from './model.mjs';
+import {CATALOG,CATEGORIES,FEATURED,OPEN,CLOSE,money,simTime,initialState,validState,productView,offerAvailable,rawAvailable,sell,restock,evaluateBatch,executeDemoDecision,observeStock,setAllocations,demoScenarios,triggerEvent,comboView,buyCombo,basketQuote,applyTicker,stepSimulation,snapshotAt,demand,settingsFor,updateSettings,startPlannedDay,receiveStock,recountBatch,jumpToRush,endDeal} from './model.mjs';
 import {createCase} from './case.mjs';
 const $=id=>document.getElementById(id),KEY='marketbite-connections-v3',escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const params=new URLSearchParams(location.search),displayOnly=params.get('display')==='1';
-let view=displayOnly?'tv':params.get('view')||'tv',state,playing=false,timer=null,storageAvailable=true,page=0,tvCategory='featured',selectedBatch='batch-5',decision=null,basket={},dealsOnly=false,caseScene=null,rushTimers=[];
+let view=displayOnly?'tv':params.get('view')||'home',state,playing=false,timer=null,storageAvailable=true,page=0,tvCategory='featured',selectedBatch='batch-5',decision=null,basket={},dealsOnly=false,caseScene=null;
 function read(){try{const s=JSON.parse(localStorage.getItem(KEY));if(validState(s))return s;}catch{storageAvailable=false;}return null;}
 state=read()||initialState();
 const timeFormat=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',second:'2-digit'});
@@ -18,19 +18,18 @@ async function change(fn,{stop=true}={}){
  if(navigator.locks)await navigator.locks.request(KEY,run);else run();
 }
 function showView(next,push=true){
- view=['tv','simulation','mobile'].includes(next)?next:'tv';
- for(const id of ['tv','simulation','mobile'])$('view-'+id).hidden=id!==view;
+ view=['home','tv','simulation','mobile','inventory'].includes(next)?next:'home';
+ for(const id of ['home','tv','simulation','mobile','inventory'])$('view-'+id).hidden=id!==view;
  document.querySelectorAll('.workspace-bar [data-view]').forEach(a=>{if(a.dataset.view===view)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
- if(push&&!displayOnly)history.pushState({},'', '?view='+view);
+ if(push&&!displayOnly){history.pushState({},'', '?view='+view);window.scrollTo(0,0);}
  if(view==='simulation'){if(!caseScene)caseScene=createCase($('case-stage'));caseScene?.setState(state);caseScene?.resize();}
  if(view==='tv')resize();render();
 }
-document.querySelectorAll('[data-view]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();showView(a.dataset.view);}));
-window.addEventListener('popstate',()=>showView(new URLSearchParams(location.search).get('view')||'tv',false));
+document.querySelectorAll('[data-view]').forEach(a=>a.addEventListener('click',e=>{e.preventDefault();showView(a.dataset.view);if(a.hash)$(a.hash.slice(1))?.scrollIntoView({behavior:'smooth'});}));
+window.addEventListener('popstate',()=>showView(new URLSearchParams(location.search).get('view')||'home',false));
 if(displayOnly){document.body.classList.add('tv-only');$('tv-tools').hidden=false;}
 function resize(){const r=$('tv-stage').getBoundingClientRect();if(!r.width)return;const scale=Math.min(r.width/1920,r.height/1080);$('tv').style.transform=document.fullscreenElement===$('tv-stage')?'translate(-50%,-50%) scale('+scale+')':'scale('+scale+')';}
 new ResizeObserver(resize).observe($('tv-stage'));window.addEventListener('resize',resize);document.addEventListener('fullscreenchange',resize);
-$('tv-fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await $('tv-stage').requestFullscreen();}catch{toast('Use your browser full-screen command.');}};
 for(const id of ['tv-category','inventory-category'])for(const c of CATEGORIES){const o=document.createElement('option');o.value=c;o.textContent=c;$(id).append(o);}
 function tvProducts(){return tvCategory==='featured'?FEATURED.map(id=>CATALOG.find(p=>p.id===id)):tvCategory==='all'?CATALOG:CATALOG.filter(p=>p.category===tvCategory);}
 function renderTV(previous){
@@ -42,10 +41,10 @@ function renderTV(previous){
  }).join('');
  const offers=CATALOG.map(p=>productView(state,p.id)).filter(p=>p.quantity&&p.saving);
  const promotion=state.promotion;
- $('menu-status').textContent=state.minute>=CLOSE-5?'OFFERS ENDED':promotion?({crash:'STOCK CRASH',combo:'STUDY BUDDY',rush:'LUNCH RUSH',rescue:'LAST-CALL OFFERS'}[promotion.kind]):offers.length?'PRICE DROPS NOW':'FRESH IN THE CASE';
+ $('menu-status').textContent=state.minute>=CLOSE-5?'OFFERS ENDED':promotion?({crash:'STOCK CRASH',combo:'STUDY BUDDY',rush:(promotion.rushType||'lunch').toUpperCase()+' RUSH',rescue:'LAST-CALL OFFERS'}[promotion.kind]):offers.length?'PRICE DROPS NOW':'FRESH IN THE CASE';
  const combo=comboView(state);
- $('menu-message').textContent=state.minute>=CLOSE-5?'Thanks for making every bite count.':promotion?.kind==='combo'&&combo.available?'BUFF + BLUE · '+money(combo.total)+' together':promotion?.kind==='rush'?'The lunch rush is on. Your confirmed prices hold.':offers.length?'Good food. A little less. A lot less waste.':'Sandwiches, bagels, pastries & something sweet.';
- $('day-clock').textContent=simTime(state.minute);$('updated').textContent='Synced '+timeFormat.format(new Date(state.updatedAt));
+ $('menu-message').textContent=state.minute>=CLOSE-5?'Thanks for making every bite count.':promotion?.kind==='combo'&&combo.available?combo.products.map(p=>p.symbol).join(' & ')+' · '+money(combo.total)+' together':promotion?.kind==='rush'?'The '+(promotion.rushType||'lunch')+' rush is on. Your confirmed prices hold.':offers.length?'Good food. A little less. A lot less waste.':'Sandwiches, bagels, pastries & something sweet.';
+ $('day-clock').textContent=simTime(state.minute);$('tv-impact').textContent=state.surplusSold+' surplus items sold · demo';$('updated').textContent='Synced '+timeFormat.format(new Date(state.updatedAt));
  $('sync-status').textContent=storageAvailable?'Connected across tabs in this browser':'Session only · browser storage unavailable';
  renderTicker();
 }
@@ -61,9 +60,9 @@ function renderTicker(){
   $('ticker-track').innerHTML='<div class="ticker-group">'+content+'</div><div class="ticker-group" aria-hidden="true">'+content+'</div>';
  }
  $('ticker-track').classList.toggle('paused',!state.preferences.ticker);
- for(const id of ['ticker-toggle','tv-ticker']){$(id).textContent=state.preferences.ticker?'Pause ticker':'Resume ticker';$(id).setAttribute('aria-pressed',String(!state.preferences.ticker));}
+ for(const id of ['ticker-toggle']){$(id).textContent=state.preferences.ticker?'Pause ticker':'Resume ticker';$(id).setAttribute('aria-pressed',String(!state.preferences.ticker));}
 }
-for(const id of ['ticker-toggle','tv-ticker'])$(id).onclick=()=>change(s=>applyTicker(s,!s.preferences.ticker),{stop:false});
+for(const id of ['ticker-toggle'])$(id).onclick=()=>change(s=>applyTicker(s,!s.preferences.ticker),{stop:false});
 function renderInventory(){
  const cat=$('inventory-category').value;
  $('inventory-list').innerHTML=CATALOG.filter(p=>cat==='all'||p.category===cat).map(product=>{
@@ -75,7 +74,7 @@ $('inventory-list').onclick=e=>{
  const b=e.target.closest('button');if(!b)return;
  if(b.dataset.sell)change(s=>sell(s,b.dataset.sell));
  if(b.dataset.restock)change(s=>restock(s,b.dataset.restock));
- if(b.dataset.review){pause();selectedBatch=productView(state,b.dataset.review).batchId||state.batches.find(bat=>bat.productId===b.dataset.review).id;$('decision-batch').value=selectedBatch;$('chart-batch').value=selectedBatch;evaluate();$('decision-result').scrollIntoView({behavior:'smooth',block:'center'});}
+ if(b.dataset.review){pause();showView('inventory');selectedBatch=productView(state,b.dataset.review).batchId||state.batches.find(bat=>bat.productId===b.dataset.review).id;$('decision-batch').value=selectedBatch;$('chart-batch').value=selectedBatch;evaluate();$('decision-result').scrollIntoView({behavior:'smooth',block:'center'});}
 };
 function renderActivity(){
  $('activity-list').replaceChildren(...state.events.slice(0,15).map(e=>{const li=document.createElement('li'),t=document.createElement('time'),span=document.createElement('span');t.textContent=simTime(e.at);span.textContent=e.text;if(e.kind==='drop')span.className='event-drop';li.append(t,span);return li;}));
@@ -115,6 +114,7 @@ $('observe').onclick=()=>change(s=>observeStock(s));
 function renderDecision(){
  const b=state.batches.find(b=>b.id===$('decision-batch').value);if(!b)return;
  for(const [input,k] of [['reserved','reserved_units'],['protected','protected_units'],['buffer','buffer_units']])if(document.activeElement!==$(input))$(input).value=b[k];
+ if(document.activeElement!==$('physical-count'))$('physical-count').value=b.physical_units;
  const scenarios=demoScenarios(b,state.policy,$('scenario-profile').value);
  const prices=Object.keys(scenarios[0]?.demand||{});
  $('scenario-table').innerHTML='<table><thead><tr><th>Assumed demand</th>'+prices.map(p=>'<th>'+money(Number(p))+'</th>').join('')+'</tr></thead><tbody>'+scenarios.map(s=>'<tr><td>'+s.label+' ('+Number(s.weight)*100+'%)</td>'+prices.map(p=>'<td>'+s.demand[p]+'</td>').join('')+'</tr>').join('')+'</tbody></table>';
@@ -122,31 +122,31 @@ function renderDecision(){
  if(!decision){$('decision-result').innerHTML='<p>Physical '+b.physical_units+' − reserved '+b.reserved_units+' − protected '+b.protected_units+' − buffer '+b.buffer_units+' = '+rawAvailable(b)+' offer units. '+(b.window_committed?'This window is committed.':'Evaluate to compare the permitted prices.')+'</p>';return;}
  const d=decision;
  $('decision-result').innerHTML='<span class="result-status '+d.status.toLowerCase()+'">'+d.status+'</span><p>'+escape(d.reason)+'</p>'+(d.floor_cents!==null?'<p>Floor '+money(d.floor_cents)+' · '+d.available+' offer units'+(d.evaluation_completed?' · baseline leftovers '+d.expected_baseline_leftovers.toFixed(2):'')+'</p>':'')+(d.rows.length?'<table><thead><tr><th>Candidate</th><th>Expected sales</th><th>Expected gain</th><th>Worst listed gain</th><th>Passes gates</th></tr></thead><tbody>'+d.rows.map(r=>'<tr class="'+(r.admissible?'accepted':'')+'"><td>'+money(r.price_cents)+(r.price_cents===d.price_cents?' · selected':'')+'</td><td>'+r.expected_sales.toFixed(2)+'</td><td>'+money(r.expected_gain_cents)+'</td><td>'+money(r.worst_gain_cents)+'</td><td>'+(r.admissible?'Yes':r.price_cents===b.current_cents?'Baseline':'No')+'</td></tr>').join('')+'</tbody></table>':'');
- if(d.evaluation_completed&&!b.window_committed){$('publish-price').hidden=false;$('publish-price').textContent=d.status==='MARKDOWN'?'Authorize + acknowledge '+money(d.price_cents)+' in demo':'Commit evaluated hold';$('fail-price').hidden=d.status!=='MARKDOWN';}
+ if(d.evaluation_completed&&!b.window_committed){$('publish-price').hidden=false;$('publish-price').textContent=d.status==='MARKDOWN'?'Publish '+money(d.price_cents)+' to demo screens':'Keep this price for this batch';$('fail-price').hidden=d.status!=='MARKDOWN';}
 }
 $('publish-price').onclick=()=>{const d=decision;if(!d)return;change(s=>executeDemoDecision(s,d.batchId,d,true,true,'manual-'+d.windowId+'-'+d.checkoutVersion)).then(()=>{decision=null;renderDecision();});};
 $('fail-price').onclick=()=>{const d=decision;if(d)change(s=>executeDemoDecision(s,d.batchId,d,true,false,'failed-'+d.windowId));};
 $('save-allocations').onclick=()=>change(s=>setAllocations(s,$('decision-batch').value,Number($('reserved').value),Number($('protected').value),Number($('buffer').value))).then(()=>{decision=null;renderDecision();});
 $('scenario-profile').onchange=()=>{decision=null;renderDecision();};
-function updatePlayback(){$('pause-day').textContent=playing?'Pause':'Resume';$('pause-day').disabled=!playing&&state.minute>=CLOSE;$('run-day').textContent=playing?'↻ Restart day':'▶ Replay day';}
-function pause(){clearInterval(timer);timer=null;playing=false;rushTimers.forEach(clearTimeout);rushTimers=[];updatePlayback();}
+function updatePlayback(){for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).textContent=playing?'Pause':'Play';$('pause-day').disabled=!playing&&state.minute>=CLOSE;$('run-day').textContent=playing?'↻ Restart day':'▶ Replay day';}
+function pause(){clearInterval(timer);timer=null;playing=false;updatePlayback();}
 function start(){if(state.minute>=CLOSE)return;clearInterval(timer);playing=true;updatePlayback();timer=setInterval(async()=>{await change(s=>stepSimulation(s,5),{stop:false});if(state.minute>=CLOSE)pause();},500/Number($('speed').value));}
-$('run-day').onclick=()=>change(()=>initialState('opening')).then(()=>{decision=null;start();});
+$('run-day').onclick=()=>change(s=>startPlannedDay(s)).then(()=>{decision=null;start();});
 $('pause-day').onclick=()=>playing?pause():start();
 $('speed').onchange=()=>{if(playing)start();};
-$('reset').onclick=()=>{basket={};decision=null;change(()=>initialState());};
+$('reset').onclick=()=>{basket={};decision=null;change(s=>initialState('deals',settingsFor(s)));};
 $('day-slider').oninput=e=>{$('simulation-time').textContent=simTime(Number(e.target.value));};
-$('day-slider').onchange=e=>{basket={};decision=null;change(()=>snapshotAt(Number(e.target.value)));};
+$('day-slider').onchange=e=>{basket={};decision=null;change(s=>snapshotAt(Number(e.target.value),settingsFor(s)));};
 document.querySelectorAll('[data-event]').forEach(button=>button.onclick=async()=>{
- const kind=button.dataset.event;await change(s=>triggerEvent(s,kind));toast(kind==='crash'||kind==='rescue'?'Eligible batches reviewed. Committed prices hold.':kind==='combo'?'Study Buddy pairing is on the mobile menu.':'Lunch rush started.');
- if(kind==='rush')for(let i=0;i<6;i++)rushTimers.push(setTimeout(()=>change(s=>{const id=FEATURED[i%6];return productView(s,id).quantity?sell(s,id):s;},{stop:false}),800*(i+1)));
+ const kind=button.dataset.event;await change(s=>triggerEvent(s,kind,kind==='combo'?{title:'Study Buddy',ids:['buffalo','blueberry']}:{ }));toast(kind==='crash'||kind==='rescue'?'Eligible batches reviewed. Confirmed prices stay in place.':'Sandwich & muffin pairing is on the mobile menu.');
 });
+$('open-deals').onclick=()=>{showView('inventory');$('deal-desk').scrollIntoView({behavior:'smooth'});};
 function renderMobile(){
  const search=$('menu-search').value.trim().toLowerCase();
  $('mobile-open').textContent=state.minute<CLOSE-5?'Offers available · demo '+simTime(state.minute):'Offers ended for today';
  $('mobile-updated').textContent='Updated '+simTime(state.minute);
  const promo=state.promotion,c=comboView(state);
- $('mobile-promotion').innerHTML=promo?'<div class="mobile-deal"><strong>'+({crash:'The bakery stock crash',combo:'Study Buddy pairing',rush:'Lunch rush is on',rescue:'Last-call offers'}[promo.kind])+'</strong><p>'+({crash:'Freshly confirmed savings on eligible bakery batches. Catch your favorite while it lasts.',combo:'Buffalo Chicken + Blueberry Muffin · '+money(c.total)+' together. Each item keeps its confirmed price.',rush:'Busy lunch, steady prices. See available food below.',rescue:'Find eligible surplus offers before the selling window closes.'}[promo.kind])+'</p><p>Event ends at '+simTime(promo.until)+'</p>'+(promo.kind==='combo'?'<button id="add-combo" '+(!c.available?'disabled':'')+'>'+(c.available?'Add both to basket':'Pairing unavailable')+'</button>':'')+'</div>':'';
+ $('mobile-promotion').innerHTML=promo?'<div class="mobile-deal"><strong>'+escape(promo.title||({crash:'The Bakery Stock Crash',combo:'Study Buddy Pairing',rush:'Rush Is On',rescue:'Last-call Offers'}[promo.kind]))+'</strong><p>'+({crash:'Freshly confirmed savings on eligible bakery batches. Catch your favorite while it lasts.',combo:c.products.map(p=>escape(p.name)).join(' & ')+' · '+money(c.total)+' together. Each item keeps its confirmed price.',rush:'The '+escape(promo.rushType||'lunch')+' rush is on. Confirmed prices hold.',rescue:'Find eligible surplus offers before the selling window closes.'}[promo.kind])+'</p><p>Event ends at '+simTime(promo.until)+'</p>'+(promo.kind==='combo'?'<button id="add-combo" '+(!c.available?'disabled':'')+'>'+(c.available?'Add both to basket':'Pairing unavailable')+'</button>':'')+'</div>':'';
  const matches=CATALOG.filter(p=>(!search||(p.name+' '+p.symbol+' '+p.category).toLowerCase().includes(search))&&(!dealsOnly||(productView(state,p.id).saving>0&&productView(state,p.id).quantity>0)));
  $('mobile-menu').innerHTML=matches.length?CATEGORIES.map((category,i)=>{
  const products=matches.filter(p=>p.category===category);if(!products.length)return '';
@@ -177,11 +177,59 @@ $('basket-open').onclick=()=>{renderBasket();$('basket-dialog').showModal();};
 $('basket-items').onclick=e=>{const id=e.target.closest('[data-remove]')?.dataset.remove;if(!id)return;if(--basket[id]===0)delete basket[id];renderBasket();};
 $('checkout').onclick=async()=>{let success=false;await change(s=>{const result=basketQuote(s,basket);success=true;return result.state;});if(success){basket={};renderBasket();$('basket-dialog').close();toast('Demo purchase complete. Case inventory updated.');}};
 function render(previous){
- renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
- $('simulation-time').textContent=simTime(state.minute);$('day-slider').value=state.minute;
+ renderHome();renderDesk();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
+ $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-live-time').textContent='DEMO / '+simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;
  $('total-stock').textContent=state.batches.reduce((n,b)=>n+offerAvailable(state,b),0);$('total-sold').textContent=state.sold;updatePlayback();caseScene?.setState(state);
 }
 window.addEventListener('storage',e=>{if(e.key!==KEY||!e.newValue)return;try{const next=JSON.parse(e.newValue);if(!validState(next))return;pause();const old=state;state=next;decision=null;render(old);}catch{}});
 let toolsTimer;if(displayOnly)window.addEventListener('pointermove',()=>{document.body.classList.add('show-tools');clearTimeout(toolsTimer);toolsTimer=setTimeout(()=>document.body.classList.remove('show-tools'),2500);});
-function clock(){const now=new Date();$('clock').textContent=timeFormat.format(now);$('clock').dateTime=now.toISOString();}
+function clock(){const now=new Date();const parts=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',weekday:'long',month:'long',day:'numeric'}).formatToParts(now);const day=Number(parts.find(p=>p.type==='day').value),suffix=(day%100>=11&&day%100<=13)?'th':({1:'st',2:'nd',3:'rd'}[day%10]||'th');const date=parts.map(p=>p.value+(p.type==='day'?suffix:'')).join('');document.querySelectorAll('.live-date').forEach(el=>el.textContent=date);$('clock').textContent=timeFormat.format(now);$('clock').dateTime=now.toISOString();}
+
+let deskSignature='',planDirty=false;
+const settingsCopy=()=>structuredClone(settingsFor(state));
+function renderHome(){
+ $('home-quotes').innerHTML=FEATURED.map(id=>{const p=productView(state,id);return '<div class="quote-row"><span><b>'+p.symbol+'</b><small>'+escape(p.name)+'</small></span><strong>'+(p.quantity?money(p.price):'—')+'</strong><em>'+(p.quantity&&p.saving?'▼ '+pct(p.discount)+'%':'HOLD')+'</em></div>';}).join('');
+}
+function renderDesk(){
+ $('desk-time').textContent='DEMO MARKET / '+simTime(state.minute);
+ const cfg=settingsFor(state),signature=JSON.stringify(cfg);
+ if(signature!==deskSignature&&!planDirty){
+  deskSignature=signature;
+  $('opening-rows').innerHTML=CATALOG.map(p=>{const m=cfg.menu[p.id];return '<tr><th><b>'+escape(p.name)+'</b><small>'+p.symbol+'</small></th>'+[['stock',m.stock,'1','0','200'],['price',(m.price/100).toFixed(2),'.01','.01','100'],['floor',(m.floor/100).toFixed(2),'.01','.01','100'],['cost',(m.cost/100).toFixed(2),'.01','0','100']].map(([key,value,step,min,max])=>'<td><input aria-label="'+escape(p.name)+' '+key+'" data-plan="'+p.id+'" data-field="'+key+'" type="number" value="'+value+'" step="'+step+'" min="'+min+'" max="'+max+'" required></td>').join('')+'</tr>';}).join('');
+ }
+ const d=state.promotion;
+ $('deal-preview').textContent=d?'ON AIR / '+(d.title||({combo:'Study Buddy',crash:'Bakery Stock Crash',rush:'Rush',rescue:'Last-call Offers'}[d.kind]))+' · ends '+simTime(d.until):'No offer announcement is running. Confirmed prices are still available.';
+}
+$('opening-form').oninput=()=>{planDirty=true;$('plan-status').textContent='Unsaved opening plan';};
+function openingSettings(){
+ const cfg=settingsCopy();
+ for(const input of document.querySelectorAll('[data-plan]'))cfg.menu[input.dataset.plan][input.dataset.field]=input.dataset.field==='stock'?Number(input.value):cents(input.value);
+ return cfg;
+}
+function cents(text){if(!/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(String(text)))throw new Error('Enter prices with at most two decimal places.');return Math.round(Number(text)*100);}
+$('save-plan').onclick=()=>{if(!$('opening-form').reportValidity())return;change(s=>{const next=updateSettings(s,openingSettings());planDirty=false;$('plan-status').textContent='Saved for the next day or fresh batch';return next;});};
+$('opening-form').onsubmit=e=>{e.preventDefault();change(s=>{const next=startPlannedDay(s,openingSettings());planDirty=false;decision=null;basket={};$('plan-status').textContent='Plan applied · new day started';toast('Opening plan is now on every screen.');return next;});};
+for(const id of ['receive-product','deal-first','deal-second'])$(id).innerHTML=CATALOG.map(p=>'<option value="'+p.id+'">'+escape(p.name)+'</option>').join('');
+function receiveDefaults(){const m=settingsFor(state).menu[$('receive-product').value];for(const k of ['price','floor','cost'])$('receive-'+k).value=(m[k]/100).toFixed(2);}
+$('receive-product').onchange=receiveDefaults;
+$('receive-form').onsubmit=e=>{e.preventDefault();change(s=>{const next=receiveStock(s,$('receive-product').value,Number($('receive-quantity').value),cents($('receive-price').value),cents($('receive-floor').value),cents($('receive-cost').value));toast('Fresh batch received. Case and menus updated.');return next;});};
+$('recount-batch').onclick=()=>change(s=>recountBatch(s,$('decision-batch').value,Number($('physical-count').value))).then(()=>{decision=null;renderDecision();});
+function rushDefaults(){const r=settingsFor(state).rushes[$('rush-type').value];$('rush-time').value=String(Math.floor(r.at/60)).padStart(2,'0')+':'+String(r.at%60).padStart(2,'0');$('rush-orders').value=r.orders;$('rush-duration').value=r.duration;}
+$('rush-type').onchange=rushDefaults;
+function rushSettings(){
+ const cfg=settingsCopy(),value=$('rush-time').value;if(!/^\d{2}:\d{2}$/.test(value))throw new Error('Choose a rush time.');
+ const [h,m]=value.split(':').map(Number);cfg.rushes[$('rush-type').value]={at:h*60+m,orders:Number($('rush-orders').value),duration:Number($('rush-duration').value)};return cfg;
+}
+$('save-rush').onclick=()=>change(s=>{const next=updateSettings(s,rushSettings());toast('Rush schedule saved.');return next;});
+$('start-rush').onclick=async()=>{let success=false;await change(s=>{const next=jumpToRush(updateSettings(s,rushSettings()),$('rush-type').value);success=true;return next;});if(success){decision=null;basket={};start();toast('Rush started. Watch the shelves and menus.');}};
+function dealFields(){const pair=$('deal-kind').value==='combo';$('pair-one-label').hidden=!pair;$('pair-two-label').hidden=!pair;$('deal-category-label').hidden=$('deal-kind').value!=='crash';}
+$('deal-kind').onchange=()=>{const k=$('deal-kind').value;$('deal-title').value={combo:'Study Buddy',crash:'Bakery Stock Crash',rescue:'Last-call Offers'}[k];dealFields();};
+$('deal-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=settingsCopy();cfg.deal={kind:$('deal-kind').value,title:$('deal-title').value.trim(),duration:Number($('deal-duration').value),category:$('deal-category').value,ids:[$('deal-first').value,$('deal-second').value]};const next=triggerEvent(updateSettings(s,cfg),cfg.deal.kind);toast('Offer is on the menu. Eligible price drops were reviewed.');return next;});};
+$('end-deal').onclick=()=>change(s=>endDeal(s));
+$('mobile-replay').onclick=$('run-day').onclick;$('mobile-mini-replay').onclick=$('run-day').onclick;
+$('mobile-pause').onclick=$('pause-day').onclick;$('mobile-mini-play').onclick=$('pause-day').onclick;
+$('mobile-day-slider').oninput=e=>$('mobile-demo-time').textContent=simTime(Number(e.target.value));
+$('mobile-day-slider').onchange=$('day-slider').onchange;
+const d=settingsFor(state).deal;$('deal-kind').value=d.kind;$('deal-title').value=d.title;$('deal-duration').value=d.duration;$('deal-first').value=d.ids[0];$('deal-second').value=d.ids[1];$('deal-category').value=d.category;
+dealFields();rushDefaults();receiveDefaults();
 clock();setInterval(clock,1000);save();showView(view,false);

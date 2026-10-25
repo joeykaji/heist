@@ -2,7 +2,7 @@ MarketBite Connections Cafe prototype
 
 Regular menu prices were transcribed from the user-supplied Grubhub screenshots on October 24, 2026. Drinks are excluded. Duplicate Chocolate Croissant/Muffin listings across Pastries and Bakery were consolidated; all distinct foods remain available.
 
-Food photos are representative AI-generated menu imagery, not photographs of Connections Cafe's actual products. Bagel flavors share an everything-bagel category photograph. Logos were supplied by the user. New food assets were made with built-in Imagegen; prompts are in image-prompts.json. The site uses optimized copies in assets/*.webp.
+Food photos are representative AI-generated menu imagery, not photographs of Connections Cafe's actual products. Each bagel variety has its own generated photograph with distinct toppings or dough. Logos were supplied by the user. New food assets were made with built-in Imagegen; prompts are in image-prompts.json. The site uses optimized copies in assets/*.webp.
 
 Pricing follows a JavaScript/Decimal implementation of MarketBite Pricing Specification 1.1 / Engine 2.1. Economics and scenario demand are explicit prototype fixtures, not evidence about the cafe. Checkout authorization, acknowledgment, inventory observations, transfers and purchases are simulated. There is no Grubhub/POS connection and no payment collection. Data sync is limited to tabs in this browser.
 

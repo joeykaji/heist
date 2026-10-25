@@ -1,6 +1,6 @@
 {
   "tool": "Built-in Imagegen",
-  "style": "Café menu photographs, warm cream tabletop, soft daylight, no props or text",
+  "style": "Caf\u00e9 menu photographs, warm cream tabletop, soft daylight, no props or text",
   "assets": [
     {
       "id": "wrap",
@@ -61,6 +61,34 @@
     {
       "id": "doughnut",
       "prompt": "One round chocolate glazed filled doughnut, no hole."
+    },
+    {
+      "id": "bagel-poppy",
+      "prompt": "Use case: product-mockup. Asset type: cafe menu product photography. Create one photorealistic Poppy Seed Bagel. Subject details: dense small black poppy seeds across the glossy golden-brown crust; no sesame, onion or other toppings. A single whole ring-shaped unsliced bagel with a clear central hole, centered on a warm ivory cream matte surface with a seamless cream background. Slightly elevated three-quarter camera angle showing the top and front, close product shot, whole bagel fully inside frame, bagel fills about 70 percent of image width. Landscape 3:2 composition. Soft natural studio light from upper left, gentle contact shadow below, realistic bakery texture, appetizing but honest food photography. Match a cohesive premium cafe catalog: neutral cream tones, crisp subject, subtle depth of field. No plate, no cutlery, no garnish, no fillings, no hands, no lettering, no logo, no watermark. The bagel variety should be clearly recognizable."
+    },
+    {
+      "id": "bagel-sesame",
+      "prompt": "Use case: product-mockup. Asset type: cafe menu product photography. Create one photorealistic Sesame Bagel. Subject details: generous ivory and pale golden sesame seeds across the glossy golden-brown crust; no poppy seeds or other toppings. A single whole ring-shaped unsliced bagel with a clear central hole, centered on a warm ivory cream matte surface with a seamless cream background. Slightly elevated three-quarter camera angle showing the top and front, close product shot, whole bagel fully inside frame, bagel fills about 70 percent of image width. Landscape 3:2 composition. Soft natural studio light from upper left, gentle contact shadow below, realistic bakery texture, appetizing but honest food photography. Match a cohesive premium cafe catalog: neutral cream tones, crisp subject, subtle depth of field. No plate, no cutlery, no garnish, no fillings, no hands, no lettering, no logo, no watermark. The bagel variety should be clearly recognizable."
+    },
+    {
+      "id": "bagel-cinnamon-raisin",
+      "prompt": "Use case: product-mockup. Asset type: cafe menu product photography. Create one photorealistic Cinnamon Raisin Bagel. Subject details: warm cinnamon brown marbling in the golden crust, visible dark raisins baked into the dough; no seeds, no glaze. A single whole ring-shaped unsliced bagel with a clear central hole, centered on a warm ivory cream matte surface with a seamless cream background. Slightly elevated three-quarter camera angle showing the top and front, close product shot, whole bagel fully inside frame, bagel fills about 70 percent of image width. Landscape 3:2 composition. Soft natural studio light from upper left, gentle contact shadow below, realistic bakery texture, appetizing but honest food photography. Match a cohesive premium cafe catalog: neutral cream tones, crisp subject, subtle depth of field. No plate, no cutlery, no garnish, no fillings, no hands, no lettering, no logo, no watermark. The bagel variety should be clearly recognizable."
+    },
+    {
+      "id": "bagel-blueberry",
+      "prompt": "Use case: product-mockup. Asset type: cafe menu product photography. Create one photorealistic Blueberry Bagel. Subject details: natural muted purple-blue marbling and a few visible baked blueberry pieces in the golden tan crust, believable blueberry bagel dough; no seeds, no glaze. A single whole ring-shaped unsliced bagel with a clear central hole, centered on a warm ivory cream matte surface with a seamless cream background. Slightly elevated three-quarter camera angle showing the top and front, close product shot, whole bagel fully inside frame, bagel fills about 70 percent of image width. Landscape 3:2 composition. Soft natural studio light from upper left, gentle contact shadow below, realistic bakery texture, appetizing but honest food photography. Match a cohesive premium cafe catalog: neutral cream tones, crisp subject, subtle depth of field. No plate, no cutlery, no garnish, no fillings, no hands, no lettering, no logo, no watermark. The bagel variety should be clearly recognizable."
+    },
+    {
+      "id": "bagel-french-toast",
+      "prompt": "Use case: product-mockup. Asset type: cafe menu product photography. Create one photorealistic French Toast Bagel. Subject details: warm golden egg-washed crust with a distinct cinnamon sugar coating and darker toasted cinnamon patches; no icing, no syrup, no seeds. A single whole ring-shaped unsliced bagel with a clear central hole, centered on a warm ivory cream matte surface with a seamless cream background. Slightly elevated three-quarter camera angle showing the top and front, close product shot, whole bagel fully inside frame, bagel fills about 70 percent of image width. Landscape 3:2 composition. Soft natural studio light from upper left, gentle contact shadow below, realistic bakery texture, appetizing but honest food photography. Match a cohesive premium cafe catalog: neutral cream tones, crisp subject, subtle depth of field. No plate, no cutlery, no garnish, no fillings, no hands, no lettering, no logo, no watermark. The bagel variety should be clearly recognizable."
+    },
+    {
+      "id": "bagel-onion",
+      "prompt": "Use case: product-mockup. Asset type: cafe menu product photography. Create one photorealistic Onion Bagel. Subject details: generous toasted chopped onion flakes on a glossy golden-brown crust, pale amber and deep brown onion pieces; no poppy or sesame seeds. A single whole ring-shaped unsliced bagel with a clear central hole, centered on a warm ivory cream matte surface with a seamless cream background. Slightly elevated three-quarter camera angle showing the top and front, close product shot, whole bagel fully inside frame, bagel fills about 70 percent of image width. Landscape 3:2 composition. Soft natural studio light from upper left, gentle contact shadow below, realistic bakery texture, appetizing but honest food photography. Match a cohesive premium cafe catalog: neutral cream tones, crisp subject, subtle depth of field. No plate, no cutlery, no garnish, no fillings, no hands, no lettering, no logo, no watermark. The bagel variety should be clearly recognizable."
+    },
+    {
+      "id": "bagel-plain",
+      "prompt": "Use case: product-mockup. Asset type: cafe menu product photography. Create one photorealistic Plain Bagel. Subject details: smooth glossy golden-brown crust, natural baked blistering and a few delicate creases; completely unseeded and untopped. A single whole ring-shaped unsliced bagel with a clear central hole, centered on a warm ivory cream matte surface with a seamless cream background. Slightly elevated three-quarter camera angle showing the top and front, close product shot, whole bagel fully inside frame, bagel fills about 70 percent of image width. Landscape 3:2 composition. Soft natural studio light from upper left, gentle contact shadow below, realistic bakery texture, appetizing but honest food photography. Match a cohesive premium cafe catalog: neutral cream tones, crisp subject, subtle depth of field. No plate, no cutlery, no garnish, no fillings, no hands, no lettering, no logo, no watermark. The bagel variety should be clearly recognizable."
     }
   ]
 }

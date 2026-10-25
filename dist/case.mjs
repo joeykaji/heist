@@ -60,12 +60,8 @@ for(const x of [-W/2,W/2])box(display,.01,H-.1,D-.1,x,H/2+.24,0,glass);
 box(display,W,.012,D,0,H+.2,0,glass);
 const glintMat=new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.075,depthWrite:false,side:T.DoubleSide});
 for(const x of [-2.8,1.8]){const glint=box(display,.13,3.9,.002,x,2.45,D/2+.012,glintMat);glint.rotation.z=-.22;glint.castShadow=false;}
-function sign(text,w,h,x,y,z){
- const c=document.createElement('canvas');c.width=1024;c.height=128;const ctx=c.getContext('2d');
- ctx.fillStyle='#111315';ctx.fillRect(0,0,1024,128);ctx.fillStyle='#eee9dd';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='500 46px Arial, sans-serif';ctx.fillText(text,512,64);
- const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const o=mesh(display,new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({map:tex}),x,y,z);o.castShadow=false;
-}
-sign('M A R K E T B I T E',2.05,.16,0,.15,D/2+.047);
+const logoTexture=new T.TextureLoader().load('assets/marketbite-logo.png',tex=>{tex.repeat.set(.755,.30);tex.offset.set(.12,.39);tex.needsUpdate=true;});logoTexture.colorSpace=T.SRGBColorSpace;
+const logoPlate=mesh(display,new T.PlaneGeometry(1.40,.31),new T.MeshBasicMaterial({map:logoTexture}),0,H+.20,D/2+.065);logoPlate.castShadow=false;
 function layer(parent,y,thickness,material,scale=1){
  const s=new T.Shape();s.moveTo(-.43*scale,-.31*scale);s.lineTo(.43*scale,-.31*scale);s.lineTo(-.43*scale,.31*scale);s.closePath();
  const g=new T.ExtrudeGeometry(s,{depth:thickness,bevelEnabled:true,bevelSegments:1,bevelSize:.012,bevelThickness:.007,steps:1});g.rotateX(-Math.PI/2);
@@ -109,26 +105,26 @@ function muffin(type){
   else oval(g,x,y+.006,z,.022,.01,.015,sugar);
  }return g;
 }
-const foodInfo={
- turkey:['Turkey & cheddar','Turkey, cheddar, lettuce · bottom level'],caprese:['Caprese','Mozzarella, tomato, basil pesto · bottom level'],chicken:['Chicken salad','Chicken salad, cheddar, lettuce · bottom level'],
- croissant:['Butter croissant','Golden, layered pastry · first shelf'],'chocolate-pastry':['Pain au chocolat','Butter pastry with chocolate · first shelf'],cinnamon:['Cinnamon swirl','Cinnamon pastry with icing · first shelf'],
- blueberry:['Blueberry muffin','Golden muffin with blueberries · second shelf'],'chocolate-muffin':['Chocolate muffin','Chocolate muffin with chocolate chips · second shelf'],lemon:['Lemon muffin','Lemon muffin with sugar topping · second shelf']
-};
-const rows=[['turkey','caprese','chicken'],['croissant','chocolate-pastry','cinnamon'],['blueberry','chocolate-muffin','lemon']],foods=[],columns=[-2.89,-1.79,-.69,.69,1.79,2.89];
+const rows=[['turkey','caprese','chicken'],['veggie','turkey-roll','breakfast-bagel'],['chocolate-pastry','blueberry','chocolate-muffin']],foods=[],columns=[-2.89,-1.79,-.69,.69,1.79,2.89];
+function breakfast(type){
+ const g=new T.Group();
+ if(type==='breakfast-bagel'){
+  for(const y of [.08,.29]){const ring=mesh(g,new T.TorusGeometry(.25,.095,10,24),goldLight,0,y,0);ring.rotation.x=Math.PI/2;}
+ }else{oval(g,0,.08,0,.33,.09,.28,bread);oval(g,0,.32,0,.34,.12,.29,goldLight);}
+ oval(g,0,.18,0,.31,.035,.27,mozzarella);box(g,.53,.025,.43,0,.22,0,cheese);oval(g,0,.25,0,.27,.025,.23,type==='veggie'?lettuce:meat);return g;
+}
 rows.forEach((types,level)=>{
  for(const side of [-1,1])rounded(display,3.23,.035,1.98,side*1.82,levels[level]+.018,0,trayMat,.012);
  columns.forEach((x,col)=>{
   const type=types[col%3];
   for(const z of [-.75,-.25,.25,.75]){
-   let item;
-   if(level===0)item=sandwich(type);else if(type==='croissant'){item=new T.Group();const ring=mesh(item,new T.TorusGeometry(.23,.10,10,24),goldLight,0,.13,0);ring.rotation.x=Math.PI/2;}else if(type==='chocolate-pastry')item=chocolatePastry();else if(type==='cinnamon')item=cinnamonSwirl();else item=muffin(type);
+   const item=level===0?sandwich(type):level===1?breakfast(type):type==='chocolate-pastry'?chocolatePastry():muffin(type);
    item.scale.setScalar(.78);item.position.set(x,levels[level]+.052,z);if(z<0)item.rotation.y+=.09;item.userData.food=type;
-   item.traverse(child=>{if(child.isMesh)child.userData.food=type;});display.add(item);foods.push(item);
+   display.add(item);foods.push(item);
   }
  });
 });
-
-const mapping={turkey:'buffalo',caprese:'roast',chicken:'southwest',croissant:'everything','chocolate-pastry':'chocolate',cinnamon:'strawberry',blueberry:'blueberry','chocolate-muffin':'double',lemon:'banana'};
+const mapping={turkey:'buffalo',caprese:'roast',chicken:'southwest',veggie:'veggie','turkey-roll':'turkey','breakfast-bagel':'bacon','chocolate-pastry':'chocolate',blueberry:'blueberry','chocolate-muffin':'double'};
 const ordinals={};foods.forEach(o=>{o.userData.productId=mapping[o.userData.food];o.userData.ordinal=ordinals[o.userData.productId]||0;ordinals[o.userData.productId]=(ordinals[o.userData.productId]||0)+1;o.userData.base=o.position.clone();o.userData.target=true;o.userData.progress=1;});
 let yaw=.21,pitch=.16,visible=true,last=0,currentState=null,drag=null;
 function setState(s){
