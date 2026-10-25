@@ -203,7 +203,7 @@ $('basket-items').onclick=e=>{const id=e.target.closest('[data-remove]')?.datase
 $('checkout').onclick=async()=>{let success=false;await change(s=>{const result=basketQuote(s,basket);success=true;return result.state;});if(success){basket={};renderBasket();$('basket-dialog').close();toast('Demo purchase complete. Case inventory updated.');}};
 function render(previous){
  renderHours();renderSustainability();renderDesk();renderMarket();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
- $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-live-time').textContent='CAFE DAY: '+simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;
+ $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;
  $('total-stock').textContent=state.batches.reduce((n,b)=>n+offerAvailable(state,b),0);$('total-sold').textContent=state.sold;$('in-person-orders').textContent=state.orders.inPerson;$('mobile-orders').textContent=state.orders.mobile;updatePlayback();caseScene?.setState(state);
 }
 function syncLatest(){
@@ -285,3 +285,10 @@ $('mobile-pause').onclick=$('pause-day').onclick;
 $('mobile-day-slider').oninput=$('day-slider').oninput;
 renderDeskForms(settingsFor(state));
 clock();setInterval(clock,1000);if(!read())save();showView(view,false);
+
+// This story is independent of the shared cafe-day playback.
+$('journey-pause').onclick=()=>{
+ const paused=$('bite-journey').classList.toggle('journey-paused');
+ $('journey-pause').textContent=paused?'Play':'Pause';
+ $('journey-pause').setAttribute('aria-label',paused?'Play animation':'Pause animation');
+};
