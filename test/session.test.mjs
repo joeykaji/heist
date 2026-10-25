@@ -83,6 +83,20 @@ test('corrupt persistence is never silently reset',async t=>{
  const s=await setup(t);await writeFile(s.file,'{"schema":999}');await assert.rejects(Session.open(s.file));
 });
 
+test('pre-merge server sessions retain accepted orders and inventory on reopen',async t=>{
+ const s=await setup(t),b=first(s);
+ const order=(await cmd(s,'purchase',{offer:b.offerId,quantity:1,checkoutVersion:b.checkoutVersion})).result;
+ const saved=JSON.parse(await readFile(s.file,'utf8')),old=saved.model;
+ old.version=4;delete old.orders;delete old.settings.foods;delete old.settings.traffic;delete old.settings.deal.at;
+ for(const m of Object.values(old.settings.menu))delete m.enabled;
+ old.settings.rushes={breakfast:{at:480,orders:12,duration:30},lunch:{at:720,orders:20,duration:45},dinner:{at:1020,orders:12,duration:30}};
+ await writeFile(s.file,JSON.stringify(saved));
+ const restored=await Session.open(s.file),view=restored.get();
+ assert.equal(view.generation,saved.generation);assert.equal(view.revision,saved.revision);assert.deepEqual(view.orders,saved.orders);
+ assert.deepEqual(view.offers.map(b=>[b.physical_units,b.reserved_units,b.current_cents,b.priceEvents]),old.batches.map(b=>[b.physical_units,b.reserved_units,b.current_cents,b.priceEvents]));
+ await cmd(restored,'fulfill',{order:order.id});assert.equal(restored.get().orders[0].priceCents,order.priceCents);assert.equal(restored.get().orders[0].status,'fulfilled');
+});
+
 test('old checkout callback after reset cannot affect fresh batch with same identifier',async t=>{
  const s=await setup(t),b=first(s),pending=await authorize(s);const delayed=request(s,'checkout',{offer:b.offerId,operation:pending.id,action:'ack'});
  await cmd(s,'reset');const fresh=first(s);await assert.rejects(s.command(delayed),/reset/);assert.deepEqual(first(s),fresh);
@@ -91,7 +105,7 @@ test('old checkout callback after reset cannot affect fresh batch with same iden
 test('half-hour reviews recover prices after purchases, preserving accepted order quotes',async t=>{
  const s=await setup(t),offer=first(s).offerId;
  for(let i=0;i<6;i++){const pending=await authorize(s);await cmd(s,'checkout',{offer,operation:pending.id,action:'ack'});}
- const before=first(s),order=(await cmd(s,'purchase',{offer,quantity:2,checkoutVersion:before.checkoutVersion})).result;
+ const before=first(s),quantity=Math.ceil(before.reference_units/4),order=(await cmd(s,'purchase',{offer,quantity,checkoutVersion:before.checkoutVersion})).result;
  assert.equal(first(s).current_cents,before.current_cents);
  await cmd(s,'advance',{minutes:29});assert.equal(first(s).current_cents,before.current_cents);
  await cmd(s,'advance',{minutes:1});assert.ok(first(s).current_cents>before.current_cents);

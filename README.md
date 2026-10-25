@@ -1,11 +1,12 @@
 # MarketBite / Connections Cafe
 
-Five connected browser views:
+Six connected browser views:
 - ?view=home — company goals, sustainability story and verified team LinkedIn links.
 - ?view=tv — 16:9 menu with the adjustable 3D case, shared time slider, customizable rushes, events and charts underneath. ?display=1 opens the clean TV display; legacy ?view=simulation links open Cafe Display.
+- ?view=exchange — Joey's Exchange TV with rotating prices, availability and price-history charts, using the same Cafe Desk settings and day as the other displays.
 - ?view=mobile — scrollable food menu, search, category sheet, deals, day playback, simulated basket and live alert bubbles below the preview.
 - ?view=sustainability — resource goals, demo food movement and future pilot measurement.
-- ?view=inventory — collapsible Cafe Desk sections for hours, opening plan, fresh deliveries, recounts, offer review and deals.
+- ?view=inventory — collapsible Cafe Desk sections for hours, editable foods and prices, fresh deliveries, recounts, pricing review, deals and customer traffic.
 
 Run: `npm ci`, `npm run build:pricing`, then `npm run dev` (http://127.0.0.1:4173).
 Test: `npm test` (source contract, website/model integration, and isolated legacy suite).
@@ -26,7 +27,7 @@ The demo checkout adapter automatically acknowledges scheduled adjustments; manu
 
 Offers require reviewed economics, approval, supported checkout and a fresh inventory count. Counts older than 30 minutes pause availability; new orders stop five minutes before cutoff. Server counts require staff reconciliation, while browser playback supplies synthetic observations. Restocking creates a separate fresh batch and reference quantity. At closing, protected units transfer and remaining stock is retained in the simulated ledger.
 
-Charts connect a reduced set of confirmed samples, with only an endpoint marker. They display at most 32 samples, grouped into half-hour buckets, while the exact history table retains every confirmed event. Connecting segments illustrate the trend; checkout prices remain fixed between reviews. Existing saved histories are simplified for display without deleting events.
+Charts connect a reduced set of confirmed samples. They display at most 32 samples, grouped into half-hour buckets, while the exact history table retains every confirmed event. Exchange TV and mobile food cards include hourly price markers. Connecting segments illustrate the trend; checkout prices remain fixed between reviews. Existing saved histories are simplified for display without deleting events.
 
 The previous scenario optimizer remains in `src/domain/decide.mjs` and `dist/pricing.mjs` for compatibility and historical tests; it no longer controls the active demos. `npm run build:pricing` generates both engines. The earlier continuous TypeScript engine remains isolated under legacy scripts.
 
@@ -38,7 +39,7 @@ Menu data comes from the supplied screenshots; duplicate Muffin/Chocolate Croiss
 
 The 3D scene shows nine representative foods, up to eight individual models per food. Additional units are explicitly counted as back stock; the full menu inventory appears at the Cafe Desk. Sandwiches occupy the bottom and middle shelves; pastries occupy the top.
 
-Opening plans apply on a new demo day. Receiving food creates a fresh batch with editable price, floor and cost; existing batches retain their confirmed price and commitment history. Rushes schedule 1–100 attempted arrivals over 5–120 minutes. Moving backward rebuilds from the saved plan. Pairing, bakery review and last-call announcements share the same confirmed prices across all views.
+Cafe Desk can add or hide foods, edit names, symbols, photos, prices and stock, and configure deals and arrivals. Applying an opening plan rebuilds the current simulated time from that plan; receiving food creates a separate fresh batch. Normal traffic defaults to 12 in-person and 8 mobile purchases per hour, with adjustable breakfast/lunch multipliers and a quieter Closing Rush at 2 PM. These are synthetic demo rates. Moving the slider rebuilds the day from the saved plan, and Restart returns to opening time paused. Pairing, bakery price-drop and Closing Rush announcements share confirmed prices across the displays and notification phone.
 
 ## Verification
 
@@ -46,11 +47,11 @@ Opening plans apply on a new demo day. Receiving food creates a fresh batch with
 
 Vendors: Three.js 0.160.1 (MIT); Decimal.js 10.4.3 (MIT). Both are served locally; license notices remain in the files. Fonts: DM Sans and Manrope (SIL OFL, notices in assets), with Roboto Slab branding.
 
-Cafe hours default to 7 AM–3 PM. Cafe Desk accepts same-day hours at least two hours apart; applying them starts a new day with the saved opening plan. Replay, arrivals, pricing and closing follow those hours.
+Cafe hours default to 7 AM–3 PM. Cafe Desk accepts same-day hours at least two hours apart; applying them rebuilds the saved opening plan at the current time, bounded by the new hours. Replay, arrivals, pricing and closing follow those hours.
 
 ## Shared server demo
 
-The existing homepage and its five browser-local views remain at `/`. The server-backed flow uses `/shop`, `/market`, `/staff`, and `/offers/:offerId`. These routes share one authoritative session; the older homepage simulation has separate browser-local state.
+The homepage and its six browser-local views remain at `/`. The server-backed flow uses `/shop`, `/market`, `/staff`, and `/offers/:offerId`. These routes share one authoritative session; the homepage simulation has separate browser-local state.
 
 Run `npm ci` and `npm run dev`, then open Shop, Market, and Staff in separate tabs at http://127.0.0.1:4173. This flow requires the Node server; a static `dist` deployment alone cannot serve its API. Commands serialize on the server, persist to `.marketbite/session.json`, and broadcast full revisioned snapshots over SSE. Reconnecting tabs receive the current snapshot. Reset creates a new generation and invalidates old commands.
 
@@ -62,8 +63,8 @@ The Market route includes a market-wide confirmed-price trend chart: toggle doll
 
 ## Secondary Exchange TV
 
-From the existing homepage, choose **Exchange TV** in the navigation or beside Cafe Display’s TV launch button. `/?view=exchange` provides preview, previous/next page, pause rotation, and fullscreen controls. `/?display=exchange` opens the clean 16:9 screen. The 24-food menu rotates across two pages of twelve every 15 seconds; reduced-motion preference starts rotation paused.
+From the homepage, choose **Exchange TV** in the navigation or beside Cafe Display’s TV launch button. `/?view=exchange` provides preview, previous/next page, pause rotation, and fullscreen controls. `/?display=exchange` opens the clean 16:9 screen. Enabled Cafe Desk foods rotate across pages of twelve every 15 seconds; reduced-motion preference starts rotation paused.
 
-This secondary TV shares the existing browser-local Cafe Desk/playback state, just like Cafe Display. It shows confirmed batch prices, savings from regular price, available quantities, and small trend charts. Each chart is relative to that batch’s regular price. Fresh stock never joins an old batch’s line. Its countdown is for page rotation, not a promised price change. The server-backed `/market` session remains separate.
+This secondary TV shares the browser-local Cafe Desk/playback state, just like Cafe Display and Mobile Display. It shows confirmed batch prices, crossed-out original prices, available quantities, and small trend charts. Each chart is relative to that batch’s regular price. Fresh stock never joins an old batch’s line. Its countdown is for page rotation, not a promised price change. The server-backed `/market` session remains separate.
 
-Exchange TV’s simulation preview includes play/pause, replay, a five-minute step, speed, and a day scrubber. These use the same replay engine as Cafe Display; seeking rebuilds from the saved opening plan. Playback controls are hidden in standalone TV (`?display=exchange`) and fullscreen presentation.
+Exchange TV’s simulation preview includes Play/Pause, Restart, a five-minute step, speed, and a day scrubber. These use the same replay engine as Cafe Display and Mobile Display; seeking rebuilds from the saved opening plan. Playback controls are hidden in standalone TV (`?display=exchange`) and fullscreen presentation.

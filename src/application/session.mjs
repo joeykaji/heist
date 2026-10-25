@@ -1,7 +1,7 @@
 import {randomUUID, createHash} from 'node:crypto';
 import {mkdir, readFile, writeFile, rename} from 'node:fs/promises';
 import {dirname} from 'node:path';
-import {initialState, validState, CATALOG, evaluateBatch, executeDemoDecision, offerAvailable, rawAvailable, restock, recountBatch, setAllocations, hoursFor, repriceDynamic} from '../../dist/model.mjs';
+import {initialState, validState, migrateState, CATALOG, evaluateBatch, executeDemoDecision, offerAvailable, rawAvailable, restock, recountBatch, setAllocations, hoursFor, repriceDynamic} from '../../dist/model.mjs';
 export class CommandError extends Error { constructor(message,status=400){super(message);this.status=status;} }
 const assert=(ok,message,status=400)=>{if(!ok)throw new CommandError(message,status);};
 const integer=(n,min=0,max=Number.MAX_SAFE_INTEGER)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
@@ -21,7 +21,7 @@ export function snapshot(s){return {generation:s.generation,revision:s.revision,
 }),orders:s.orders,events:[...s.journal].reverse(),policy:s.model.policy,cutoff:hoursFor(s.model).close};}
 export class Session {
  constructor(state,file){this.state=state;this.file=file;this.tail=Promise.resolve();this.listeners=new Set();}
- static async open(file){let s;try{s=JSON.parse(await readFile(file,'utf8'));assert(s.schema===1&&validState(s.model)&&integer(s.revision)&&typeof s.generation==='string'&&s.operations&&s.reviews&&s.pending&&Array.isArray(s.orders)&&Array.isArray(s.journal)&&typeof s.clock?.playing==='boolean'&&integer(s.clock.speed,1,10),'Invalid saved session');}catch(e){if(e.code!=='ENOENT')throw e;s=seed();}for(const b of s.model.batches)b.reference_units??=Math.max(1,b.physical_units);const service=new Session(s,file);await service.persist(s);return service;}
+ static async open(file){let s;try{s=JSON.parse(await readFile(file,'utf8'));if(s&&s.model&&!validState(s.model)){const upgraded=migrateState(s.model);if(upgraded)s.model=upgraded;}assert(s.schema===1&&validState(s.model)&&integer(s.revision)&&typeof s.generation==='string'&&s.operations&&s.reviews&&s.pending&&Array.isArray(s.orders)&&Array.isArray(s.journal)&&typeof s.clock?.playing==='boolean'&&integer(s.clock.speed,1,10),'Invalid saved session');}catch(e){if(e.code!=='ENOENT')throw e;s=seed();}for(const b of s.model.batches)b.reference_units??=Math.max(1,b.physical_units);const service=new Session(s,file);await service.persist(s);return service;}
  async persist(s){if(!this.file)return;await mkdir(dirname(this.file),{recursive:true});const temp=this.file+'.tmp';await writeFile(temp,JSON.stringify(s),'utf8');await rename(temp,this.file);}
  get(){return snapshot(this.state);}
  subscribe(fn){this.listeners.add(fn);return()=>this.listeners.delete(fn);}
