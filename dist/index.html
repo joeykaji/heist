@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="en">
+<head>
+ <meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+ <meta name="theme-color" content="#0f2d44"><meta name="description" content="MarketBite café display: food, current prices and surplus savings in a live 16:9 menu.">
+ <title>MarketBite · Café display</title>
+ <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='12' fill='%230f2d44'/%3E%3Ctext x='12' y='46' font-family='Georgia' font-size='42' font-weight='bold' fill='%23e7b635'%3EM%3C/text%3E%3C/svg%3E">
+ <link rel="stylesheet" href="styles.css">
+ <script type="module" src="app.mjs"></script>
+</head>
+<body>
+ <header class="workspace-bar" id="workspace-bar">
+  <div><a href="./" class="workspace-brand">MarketBite <span>Display studio</span></a><span class="local-badge">INTERACTIVE DEMO</span></div>
+  <nav aria-label="Display actions"><button id="ticker-toggle" aria-pressed="false">Pause ticker</button><button id="fullscreen">⛶ Full screen</button><a class="primary-button" href="?display=1" target="_blank" rel="noopener">Open TV view ↗</a></nav>
+ </header>
+ <main>
+  <section class="preview-section" aria-label="1920 by 1080 café display">
+   <div id="tv-stage" class="tv-stage">
+    <div id="tv" class="tv">
+     <header class="tv-header">
+      <div class="brand-lockup"><div class="brand-image"><img src="assets/marketbite-logo.png" alt="MarketBite" width="2880" height="1620"></div><span class="campus-name">ROCHESTER · CAMPUS CAFÉ</span></div>
+      <div class="impact-line"><span class="leaf-symbol" aria-hidden="true">↗</span><div><strong>Taste more. Waste less.</strong><span><b id="impact-count">12</b> surplus items sold today <span class="demo-note">· demo</span></span></div></div>
+      <div class="time-block"><div><span class="live-dot" aria-hidden="true"></span><time id="clock">--:--</time><span class="time-zone">ET</span></div><span id="updated">Updated just now</span></div>
+     </header>
+     <div class="menu-heading"><div><span class="status-pill" id="menu-status">AFTERNOON OFFERS</span><span id="menu-message">Great food. Even better prices.</span></div><span class="simulation-label">DEMO DAY <b id="day-clock">4:30 PM</b></span></div>
+     <section id="product-grid" class="product-grid" aria-label="Available sandwiches and bakery items"></section>
+     <div class="tv-bottom"><span>Choose from the case · Pay at the café counter</span><span>Ask staff about ingredients &amp; allergens</span><span class="illustrative-label">Illustrative menu &amp; images</span></div>
+     <section class="ticker" aria-label="Scrolling food prices and stock">
+      <div class="ticker-heading"><span class="ticker-dot"></span><strong>MARKET<br>WATCH</strong></div>
+      <div class="ticker-window"><div id="ticker-track" class="ticker-track"></div></div>
+     </section>
+    </div>
+   </div>
+   <div class="preview-caption"><span><i></i> TV display · 1920 × 1080 · 16:9</span><span id="sync-status">Changes sync between tabs in this browser</span></div>
+  </section>
+  <section id="control-room" class="control-room" aria-label="Demo controls">
+   <div class="control-heading"><div><div class="eyebrow">TRY THE EXPERIENCE</div><h1>A café day, in your hands.</h1><p>Sell a bite, add a fresh batch, or run the day. The TV updates with every change.</p></div><button id="reset" class="quiet-button">Reset to afternoon</button></div>
+   <div class="simulation-panel">
+    <div class="sim-actions"><button id="run-day" class="primary-button">▶ Run a day</button><button id="pause-day" disabled>Pause</button><label>Speed <select id="speed"><option value="1">1 day / 60 sec</option><option value="0.5">1 day / 2 min</option><option value="2">1 day / 30 sec</option></select></label></div>
+    <div class="timeline"><label for="day-slider"><span>Simulated time</span><strong id="simulation-time">4:30 PM</strong></label><input type="range" id="day-slider" min="480" max="1080" value="990" step="5" aria-label="Replay the demo at this time"><div class="timeline-labels"><span>8 AM · Open</span><span>12 PM · Lunch</span><span>4 PM · Deals</span><span>6 PM · Close</span></div></div>
+    <div class="simulation-stats"><div><strong id="total-stock">24</strong><span>available</span></div><div><strong id="total-sold">36</strong><span>sold</span></div><div><strong id="total-surplus">12</strong><span>surplus sold</span></div></div>
+   </div>
+   <div class="operations-layout">
+    <section class="inventory-panel"><div class="panel-heading"><h2>Inventory &amp; prices</h2><span>Click any food to highlight it on the TV</span></div><div id="inventory-list"></div><p class="panel-note">Restocks are separate batches at regular price. Markdowns apply to the oldest eligible offer in its final two hours.</p></section>
+    <aside class="activity-panel"><div class="panel-heading"><h2>Activity</h2><span id="activity-count">Latest updates</span></div><ol id="activity-list"></ol><div class="impact-note"><span class="eyebrow">Taste more. Waste less.</span><p>The counter tracks surplus sales. Carbon estimates need measured food weights and a validated waste baseline.</p></div></aside>
+   </div>
+   <footer class="studio-footer">Demo data stored in this browser. No café checkout is connected. <a href="image-notes.txt" target="_blank">About the food images</a></footer>
+  </section>
+ </main>
+ <div id="toast" class="toast" role="status" aria-live="polite"></div>
+ <div class="tv-tools" id="tv-tools" hidden><button id="tv-fullscreen">⛶ Full screen</button><button id="tv-ticker">Pause ticker</button><a href="./">Display studio</a></div>
+ <noscript><div class="no-script">Enable JavaScript to use the live café display.</div></noscript>
+</body>
+</html>

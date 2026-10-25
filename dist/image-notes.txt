@@ -1,0 +1,17 @@
+MarketBite food photography
+
+These six images are AI-generated illustrative menu photographs, not photographs of a café's actual products. Replace them with the café's real product photography before customer use. Ingredients and prices are example data.
+
+Generated with the built-in image generation tool. Saved alongside the app under assets/.
+
+Shared prompt: Product-mockup photograph for a recognizable café TV menu card. Landscape 3:2. Food centered, filling most of the frame, close three-quarter view. Warm pale cream seamless tabletop, no plates, utensils, props, hands, text, labels, logos or watermarks. Soft natural café window light, realistic appetizing colors, slight grounded shadow. Polished editorial food photography.
+
+Subjects:
+- turkey.png: Two triangular halves of turkey and cheddar on seeded multigrain bread, sliced turkey, orange cheddar, green lettuce visible.
+- caprese.png: Two halves of a caprese ciabatta sandwich with fresh mozzarella, tomato and basil.
+- hummus.png: Two halves of hummus and vegetable sandwich on wholegrain bread, cucumber, red pepper and greens.
+- blueberry.png: Golden blueberry muffin in kraft paper liner, visible blueberries and cracked crumb top.
+- butter.png: Classic crescent butter croissant with crisp flaky layers.
+- chocolate.png: Rectangular pain au chocolat with two visible dark chocolate ends.
+
+The MarketBite logo was supplied by the user and is used unchanged.
