@@ -1,15 +1,7 @@
 {
-  "name": "campus-food-exchange-pricing",
-  "version": "0.1.0",
+  "name": "marketbite-cafe-tv",
+  "version": "1.0.0",
   "private": true,
   "type": "module",
-  "scripts": {
-    "build": "tsc -p tsconfig.json",
-    "test": "npm run build && node --test dist/test/*.test.js",
-    "demo": "npm run build && node dist/src/demo.js"
-  },
-  "devDependencies": {
-    "@types/node": "^22.0.0",
-    "typescript": "^5.7.0"
-  }
+  "scripts": {"test": "node --test test/*.test.mjs", "dev": "node server.mjs"}
 }

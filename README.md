@@ -1,76 +1,39 @@
-# Campus Food Exchange — pricing engine
+# MarketBite / Connections Cafe
 
-A deterministic, simulated pricing module for section 3 of `plan.md`. Inventory, prices, and demo results are illustrative; they are not validated dining policy. There are no screens, real orders, payments, persistence, or integrations.
+Five connected browser views:
+- ?view=home — company goals, sustainability story and verified team LinkedIn links.
+- ?view=tv — 16:9 menu with the adjustable 3D case, shared time slider, customizable rushes, events and charts underneath. ?display=1 opens the clean TV display; legacy ?view=simulation links open Cafe Display.
+- ?view=mobile — scrollable food menu, search, category sheet, deals, day playback, simulated basket and live alert bubbles below the preview.
+- ?view=sustainability — resource goals, demo food movement and future pilot measurement.
+- ?view=inventory — collapsible Cafe Desk sections for hours, opening plan, fresh deliveries, recounts, offer review and deals.
 
-## Run
+Run: node server.mjs (http://127.0.0.1:4173). Test: node --test test/*.test.mjs.
+Static deployment root: dist. Existing Site identity is retained in .openai/hosting.json.
 
-Use Node.js 22 or later and npm:
+## Pricing and inventory
 
-```sh
-npm ci
-npm test
-npm run demo
-```
+dist/pricing.mjs implements the equations/status order in the user-supplied MarketBite Pricing Specification 1.1 / Engine 2.1 using Decimal arithmetic (40-digit precision). Candidate cents round upward; fees and expectations retain decimal precision. Unknown required economics/scenario evidence returns REVIEW. Approval flags default false in the engine.
 
-`npm run build` compiles TypeScript and emits declarations into `dist/`. Tests use Node's built-in runner against compiled code. The three-product demo resets on each run and uses explicit simulated times, showing markdowns, recovery, pause/resume, and cutoffs. Reconciliation in the demo is an explicit scenario action, never a side effect of pricing.
+The browser demo adapter in model.mjs explicitly supplies synthetic, reviewed-for-demo fixtures. These fixtures are not claims about Connections Cafe's economics or customer demand. Each batch/window may commit one evaluated HOLD or one acknowledged MARKDOWN. Restocking creates a separate fresh batch; it never relabels residual inventory. Recommendation, authorization, simulated acknowledgment and publication are separate functions/states. Failed simulated checkout updates do not publish a lower price.
 
-## Integrate
+Physical stock, reserved units, protected allocations and buffer units are distinct. Offer stock is I-R-G-B. New offers withdraw five minutes before the configured closing time (3 PM by default); simulated observations refresh every replay tick. At closing, protected stock is recorded as transferred and remaining physical units as retained, not automatically discarded. Those are scripted ledger outcomes, not verified sustainability impact.
 
-Import `evaluatePricing` and the exported types from `src/pricing.ts` (or `dist/src/pricing.js` after building). Supply `now`, `product`, `batch`, an optional complete `config`, and the `previous` state returned by the last successful call. `PricingInput` describes the input; the function accepts unknown data so adapters receive structured validation errors for malformed input.
+Stock crash and last-call events request guarded evaluations; they do not force markdowns. Study Buddy is an independently priced food pairing, without a shared-stock bundle discount or joint optimization. Price charts show an individual batch's positive confirmed prices and stop at withdrawal. Demand is a separate scripted index.
 
-```ts
-const result = evaluatePricing({ now, product, batch, previous });
-if (!result.ok) {
-  // Surface result.errors; do not offer a cached price.
-} else {
-  previous = result.state; // Save even when ineligible.
-  // Only result.eligible authorizes showing result.priceCents as purchasable.
-  // Append result.change to the audit log when non-null.
-}
-```
+## Limits
 
-State includes the previous price record, evaluated round, policy identity, and eligibility. A price record alone cannot detect a pause followed by resumption in the same round. The authoritative service must evaluate status transitions and preserve returned state, including ineligible decisions. If a pause and resume both occur between evaluations, the engine cannot infer them. Discard state on a simulated clock reset or new batch; time cannot move backwards with retained state. Treat previous state as service-owned, not client-controlled.
+Browser-local prototype, no POS, Grubhub, payment, actual orders, or cross-device service. localStorage synchronizes tabs on one origin; Web Locks serialize supported-browser mutations. No claim of real-world approval, demand calibration, carbon savings, or production checkout readiness. Accepted demo purchases are fulfilled immediately at the quoted batch price; operational cancellations, refunds and a durable authoritative ledger require a server/POS integration.
 
-All money uses nonnegative integer cents. Times use nonnegative UTC epoch milliseconds; use `America/New_York` for future campus display formatting. Sale start is inclusive and cutoff exclusive. Missing required fields fail validation; approval, pause, and end flags must be explicit booleans. Zero price is valid when staff bounds permit it.
+Menu data comes from the supplied screenshots; duplicate Muffin/Chocolate Croissant listings were consolidated. All distinct food products are included; drinks are excluded. AI-generated food photos are representative, and each bagel variety has an individual image. Logos are user-supplied. image-notes.txt and image-prompts.json describe image provenance.
 
-## Pricing rules
+The 3D scene shows nine representative foods, up to eight individual models per food. Additional units are explicitly counted as back stock; the full menu inventory appears at the Cafe Desk. Sandwiches occupy the bottom and middle shelves; pastries occupy the top.
 
-Only continuous pricing is implemented. Each batch requires a fixed, staff-defined `referenceQuantity`: a positive safe integer representing high remaining stock. Purchases, restocks, and reconciliation do not automatically change it. Stock above this reference saturates at full stock pressure.
+Opening plans apply on a new demo day. Receiving food creates a fresh batch with editable price, floor and cost; existing batches retain their confirmed price and commitment history. Rushes schedule 1–100 attempted arrivals over 5–120 minutes. Moving backward rebuilds from the saved plan. Pairing, bakery review and last-call announcements share the same confirmed prices across all views.
 
-```text
-stockPressure = min(quantity / referenceQuantity, 1)
-windowProgress = (now - saleStart) / (saleCutoff - saleStart)
-discountPercent = maxDiscountPercent × stockPressure × windowProgress
-price = ordinaryPrice × (1 - discountPercent / 100)
-```
+## Verification
 
-The default maximum discount is 30%. With stock at the reference quantity, the discount starts at 0%, reaches 15% halfway through the approved window, and approaches 30% before cutoff. At half the reference quantity halfway through the window, the discount is 7.5%: a $10 product becomes $9.25. At cutoff the offer becomes ineligible. A sufficient reduction in stock can cause price recovery at the next evaluation that recalculates the price.
+Tests cover price rounding/floors, fees and activation, scenario caps, missing and invalid inputs, strict/inclusive gates, downside protection, weight normalization, tie-breaking, holds, idempotence, failed publication, stale execution, reserved/protected stock, new batch identity, exact basket allocation, cutoff behavior, state validation and a conserved day replay. Browser checks cover the TV, mobile search/basket/category flow, 3D renderer and event controls.
 
-Calculations use exact rational integer arithmetic, round half cents upward only at the final monetary result, and then clamp to the approved floor and the lower of approved ceiling or ordinary price. A floor above that effective ceiling is invalid. Explanations round percentages to two decimal places for readability; those rounded percentages never determine the price. Approved bounds may alter the effective discount, including limiting the opening price below ordinary price.
+Vendors: Three.js 0.160.1 (MIT); Decimal.js 10.4.3 (MIT). Both are served locally; license notices remain in the files.
 
-`PricingConfig` contains `maxDiscountPercent` (integer 0–100), round duration, freshness duration, and crash threshold; `DEFAULT_CONFIG` exports the defaults. Reference quantities and the 30% maximum are illustrative demo settings, not validated dining policy. “Continuous” describes the mathematical rule: published prices still use integer cents and ten-minute rounds.
-
-### Continuous versus tiered pricing
-
-| Approach | Behavior | Tradeoff | Availability |
-|---|---|---|---|
-| Continuous formula | Discounts vary smoothly with stock pressure and progress through each sale window. | Avoids threshold jumps, but requires tuning reference quantities and the maximum discount. | Implemented |
-| Tier table | Stock and remaining-time bands select a preset discount. | Easier to explain as discrete rules, but crossing a threshold can cause a sudden price change. | Alternative only; former implementation removed |
-
-### Migration from tiers
-
-Add a fixed `referenceQuantity` to every batch. Remove `stockThresholds`, `timeThresholdsMs`, and `discountsPercent` from configuration; supply `maxDiscountPercent` instead. No legacy configuration adapter is provided. Missing reference quantity or maximum discount in an explicit configuration returns structured validation errors.
-
-Audit consumers must read `PriceChange.formula` instead of `tier`. It contains the formula identifier (`continuous-v1`), reference quantity, stock pressure, window progress, maximum discount, and calculated discount percentage. Ratio/percentage fields are numeric approximations for inspection; money uses exact arithmetic. Other audit fields and the returned state shape remain unchanged. A formula identifier in the policy identity forces immediate recalculation when switching from an old policy; versions still increment only when money changes.
-
-Ten-minute rounds align to sale start. The first eligible evaluation prices immediately. Within a round, quantity changes retain the established price unless they make the offer ineligible. Later rounds may reduce or recover the price. Skipped rounds calculate only the current decision. Policy changes (ordinary price, bounds, sale window, round duration, formula identifier, maximum discount, reference quantity) apply immediately so old prices cannot violate new approvals. Resuming from any observed ineligible state also recalculates immediately.
-
-Versions begin at 1 and increment only when the monetary price changes. Initial pricing emits a change record with a null old price. Unchanged prices emit no change record; a newly evaluated round may refresh its explanation without changing version or price-change timestamp. A crash signal requires an actual decrease of at least 20% from the previous price, is configurable, and never occurs on initial pricing. Consume the signal once while saving the returned state; retrying the same input deliberately returns the same result. Deduplicate downstream animation/audit delivery by batch and price version.
-
-## Eligibility and service responsibilities
-
-Every evaluation checks cutoff, ended, approval, pause, sale start, stock, then freshness, in that priority order. Inventory is stale at 20 minutes since reconciliation. Price calculations never refresh that timestamp or change stock. Ineligible results return null price, version, and next round; historical state is retained only for continuity and is not an offer.
-
-`nextRoundAt` is the next pricing round strictly before cutoff, or null when none remains. It is not an eligibility expiry or a timer for all state changes. The service must also schedule checks for sale start, freshness expiry, and cutoff, and evaluate staff/inventory changes immediately. Check eligibility again at order acceptance; cached prices, quotes, and animation state cannot bypass cutoff. This engine does not implement stock reservation, order acceptance, synchronization, or checkout atomicity.
-
-The future authoritative application service owns scheduling, serialized evaluation/state updates per batch, persistence, inventory events, and audit logs. Persist the returned state and change together. Invalid inputs should stop offer publication until corrected. Recheck current configuration and inventory rather than trusting client-provided state.
+Cafe hours default to 7 AM–3 PM. Cafe Desk accepts same-day hours at least two hours apart; applying them starts a new day with the saved opening plan. Replay, charts, review windows, arrivals, and closing follow those hours. Rushes outside opening hours stay saved but do not run. Earlier saved plans migrate to the new hours, keeping menu prices and rush/deal settings; the old run is backed up locally. Fonts: DM Sans and Manrope (SIL OFL, notices in assets), with Roboto Slab branding.
