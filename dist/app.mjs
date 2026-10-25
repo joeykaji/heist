@@ -1,9 +1,9 @@
-import {CATALOG,CATEGORIES,FEATURED,OPEN,CLOSE,money,simTime,initialState,validState,productView,offerAvailable,rawAvailable,sell,restock,evaluateBatch,executeDemoDecision,observeStock,setAllocations,demoScenarios,triggerEvent,comboView,buyCombo,basketQuote,applyTicker,stepSimulation,snapshotAt,demand,settingsFor,updateSettings,startPlannedDay,receiveStock,recountBatch,jumpToRush,endDeal} from './model.mjs';
+import {CATALOG,CATEGORIES,FEATURED,hoursFor,migrateState,money,simTime,initialState,validState,productView,offerAvailable,rawAvailable,sell,restock,evaluateBatch,executeDemoDecision,observeStock,setAllocations,demoScenarios,triggerEvent,comboView,buyCombo,basketQuote,applyTicker,stepSimulation,snapshotAt,demand,settingsFor,updateSettings,startPlannedDay,receiveStock,recountBatch,jumpToRush,endDeal} from './model.mjs';
 import {createCase} from './case.mjs';
 const $=id=>document.getElementById(id),KEY='marketbite-connections-v3',escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const params=new URLSearchParams(location.search),displayOnly=params.get('display')==='1';
 let view=displayOnly?'tv':params.get('view')||'home',state,playing=false,timer=null,storageAvailable=true,page=0,tvCategory='featured',selectedBatch='batch-5',decision=null,basket={},dealsOnly=false,caseScene=null;
-function read(){try{const s=JSON.parse(localStorage.getItem(KEY));if(validState(s))return s;}catch{storageAvailable=false;}return null;}
+function read(){try{const s=JSON.parse(localStorage.getItem(KEY));if(validState(s))return s;const migrated=migrateState(s);if(migrated){localStorage.setItem(KEY+'-before-hours-update',JSON.stringify(s));localStorage.setItem(KEY,JSON.stringify(migrated));return migrated;}}catch{storageAvailable=false;}return null;}
 state=read()||initialState();
 const timeFormat=new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hour:'numeric',minute:'2-digit',second:'2-digit'});
 const pct=n=>n.toFixed(1).replace(/\.0$/,'');
@@ -18,8 +18,8 @@ async function change(fn,{stop=true}={}){
  if(navigator.locks)await navigator.locks.request(KEY,run);else run();
 }
 function showView(next,push=true){
- view=['home','tv','simulation','mobile','inventory'].includes(next)?next:'home';
- for(const id of ['home','tv','simulation','mobile','inventory'])$('view-'+id).hidden=id!==view;
+ view=['home','tv','mobile','simulation','sustainability','inventory'].includes(next)?next:'home';
+ for(const id of ['home','tv','mobile','simulation','sustainability','inventory'])$('view-'+id).hidden=id!==view;
  document.querySelectorAll('.workspace-bar [data-view]').forEach(a=>{if(a.dataset.view===view)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
  if(push&&!displayOnly){history.pushState({},'', '?view='+view);window.scrollTo(0,0);}
  if(view==='simulation'){if(!caseScene)caseScene=createCase($('case-stage'));caseScene?.setState(state);caseScene?.resize();}
@@ -41,9 +41,9 @@ function renderTV(previous){
  }).join('');
  const offers=CATALOG.map(p=>productView(state,p.id)).filter(p=>p.quantity&&p.saving);
  const promotion=state.promotion;
- $('menu-status').textContent=state.minute>=CLOSE-5?'OFFERS ENDED':promotion?({crash:'STOCK CRASH',combo:'STUDY BUDDY',rush:(promotion.rushType||'lunch').toUpperCase()+' RUSH',rescue:'LAST-CALL OFFERS'}[promotion.kind]):offers.length?'PRICE DROPS NOW':'FRESH IN THE CASE';
+ $('menu-status').textContent=state.minute>=hoursFor(state).close-5?'OFFERS ENDED':promotion?({crash:'STOCK CRASH',combo:'STUDY BUDDY',rush:(promotion.rushType||'lunch').toUpperCase()+' RUSH',rescue:'LAST-CALL OFFERS'}[promotion.kind]):offers.length?'PRICE DROPS NOW':'FRESH IN THE CASE';
  const combo=comboView(state);
- $('menu-message').textContent=state.minute>=CLOSE-5?'Thanks for making every bite count.':promotion?.kind==='combo'&&combo.available?combo.products.map(p=>p.symbol).join(' & ')+' · '+money(combo.total)+' together':promotion?.kind==='rush'?'The '+(promotion.rushType||'lunch')+' rush is on. Your confirmed prices hold.':offers.length?'Good food. A little less. A lot less waste.':'Sandwiches, bagels, pastries & something sweet.';
+ $('menu-message').textContent=state.minute>=hoursFor(state).close-5?'Thanks for making every bite count.':promotion?.kind==='combo'&&combo.available?combo.products.map(p=>p.symbol).join(' & ')+' · '+money(combo.total)+' together':promotion?.kind==='rush'?'The '+(promotion.rushType||'lunch')+' rush is on. Your confirmed prices hold.':offers.length?'Good food. A little less. A lot less waste.':'Sandwiches, bagels, pastries & something sweet.';
  $('day-clock').textContent=simTime(state.minute);$('tv-impact').textContent=state.surplusSold+' surplus items sold · demo';$('updated').textContent='Synced '+timeFormat.format(new Date(state.updatedAt));
  $('sync-status').textContent=storageAvailable?'Connected across tabs in this browser':'Session only · browser storage unavailable';
  renderTicker();
@@ -66,7 +66,7 @@ for(const id of ['ticker-toggle'])$(id).onclick=()=>change(s=>applyTicker(s,!s.p
 function renderInventory(){
  const cat=$('inventory-category').value;
  $('inventory-list').innerHTML=CATALOG.filter(p=>cat==='all'||p.category===cat).map(product=>{
- const p=productView(state,product.id);return '<div class="inventory-row"><div class="inventory-product"><img src="'+p.image+'" alt=""><div><strong>'+escape(p.name)+'</strong><span>'+p.symbol+' · '+p.quantity+' available</span></div></div><div class="inventory-values"><b>'+(p.quantity?money(p.price):'—')+'</b><span>Regular '+money(p.base)+'</span></div><div class="inventory-actions"><button data-sell="'+p.id+'" '+(!p.quantity?'disabled':'')+'>Sell 1</button><button data-restock="'+p.id+'" '+(state.minute>=CLOSE-5?'disabled':'')+'>+4 fresh</button><button data-review="'+p.id+'">Review</button></div></div>';
+ const p=productView(state,product.id);return '<div class="inventory-row"><div class="inventory-product"><img src="'+p.image+'" alt=""><div><strong>'+escape(p.name)+'</strong><span>'+p.symbol+' · '+p.quantity+' available</span></div></div><div class="inventory-values"><b>'+(p.quantity?money(p.price):'—')+'</b><span>Regular '+money(p.base)+'</span></div><div class="inventory-actions"><button data-sell="'+p.id+'" '+(!p.quantity?'disabled':'')+'>Sell 1</button><button data-restock="'+p.id+'" '+(state.minute>=hoursFor(state).close-5?'disabled':'')+'>+4 fresh</button><button data-review="'+p.id+'">Review</button></div></div>';
  }).join('');
 }
 $('inventory-category').onchange=renderInventory;
@@ -89,12 +89,12 @@ function batchOptions(){
  }
 }
 function chart(id,points,max,format,step=false,end=state.minute,color='#0f2d44'){
- const x=t=>45+(t-OPEN)/(CLOSE-OPEN)*330,y=v=>77-v/max*55;
+ const {open,close}=hoursFor(state),x=t=>45+(t-open)/(close-open)*330,y=v=>77-v/max*55;
  let d='';
  for(const [i,p] of points.entries()){d+=(i?'L':'M')+x(p.at)+' '+y(p.value)+' ';if(step&&i<points.length-1)d+='L'+x(points[i+1].at)+' '+y(p.value)+' ';}
  const latest=points.at(-1);if(step&&latest&&end>latest.at)d+='L'+x(end)+' '+y(latest.value);
  $(id).setAttribute('viewBox','0 0 400 113');
- $(id).innerHTML=[0,max/2,max].map(v=>'<line x1="45" y1="'+y(v)+'" x2="375" y2="'+y(v)+'" stroke="#e4ebee"/><text x="37" y="'+(y(v)+3)+'" text-anchor="end">'+format(v)+'</text>').join('')+'<text x="45" y="102">8 AM</text><text x="177" y="102">Noon</text><text x="375" y="102" text-anchor="end">6 PM</text>'+(latest?'<circle cx="'+x(Math.min(latest.at,end))+'" cy="'+y(latest.value)+'" r="3" fill="'+color+'"/>':'')+(d?'<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2.5"/>':'')+'<line x1="'+x(state.minute)+'" x2="'+x(state.minute)+'" y1="15" y2="80" stroke="#bdc9d0" stroke-dasharray="3 4"/>';
+ $(id).innerHTML=[0,max/2,max].map(v=>'<line x1="45" y1="'+y(v)+'" x2="375" y2="'+y(v)+'" stroke="#e4ebee"/><text x="37" y="'+(y(v)+3)+'" text-anchor="end">'+format(v)+'</text>').join('')+'<text x="45" y="102">'+simTime(open)+'</text><text x="210" y="102" text-anchor="middle">'+simTime(Math.round((open+close)/2))+'</text><text x="375" y="102" text-anchor="end">'+simTime(close)+'</text>'+(latest?'<circle cx="'+x(Math.min(latest.at,end))+'" cy="'+y(latest.value)+'" r="3" fill="'+color+'"/>':'')+(d?'<path d="'+d+'" fill="none" stroke="'+color+'" stroke-width="2.5"/>':'')+'<line x1="'+x(state.minute)+'" x2="'+x(state.minute)+'" y1="15" y2="80" stroke="#bdc9d0" stroke-dasharray="3 4"/>';
 }
 function renderCharts(){
  const b=state.batches.find(b=>b.id===$('chart-batch').value)||state.batches[0],available=offerAvailable(state,b)>0;
@@ -128,9 +128,9 @@ $('publish-price').onclick=()=>{const d=decision;if(!d)return;change(s=>executeD
 $('fail-price').onclick=()=>{const d=decision;if(d)change(s=>executeDemoDecision(s,d.batchId,d,true,false,'failed-'+d.windowId));};
 $('save-allocations').onclick=()=>change(s=>setAllocations(s,$('decision-batch').value,Number($('reserved').value),Number($('protected').value),Number($('buffer').value))).then(()=>{decision=null;renderDecision();});
 $('scenario-profile').onchange=()=>{decision=null;renderDecision();};
-function updatePlayback(){for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).textContent=playing?'Pause':'Play';for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).disabled=!playing&&state.minute>=CLOSE;$('run-day').textContent=playing?'↻ Restart day':'▶ Replay day';}
+function updatePlayback(){for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).textContent=playing?'Pause':'Play';for(const id of ['pause-day','mobile-pause','mobile-mini-play'])$(id).disabled=!playing&&state.minute>=hoursFor(state).close;$('run-day').textContent=playing?'↻ Restart day':'▶ Replay day';}
 function pause(){clearInterval(timer);timer=null;playing=false;updatePlayback();}
-function start(){if(state.minute>=CLOSE)return;clearInterval(timer);playing=true;updatePlayback();timer=setInterval(async()=>{await change(s=>stepSimulation(s,5),{stop:false});if(state.minute>=CLOSE)pause();},500/Number($('speed').value));}
+function start(){if(state.minute>=hoursFor(state).close)return;clearInterval(timer);playing=true;updatePlayback();timer=setInterval(async()=>{await change(s=>stepSimulation(s,5),{stop:false});if(state.minute>=hoursFor(state).close)pause();},60000/((hoursFor(state).close-hoursFor(state).open)/5)/Number($('speed').value));}
 $('run-day').onclick=()=>change(s=>startPlannedDay(s)).then(()=>{decision=null;start();});
 $('pause-day').onclick=()=>playing?pause():start();
 $('speed').onchange=()=>{if(playing)start();};
@@ -143,7 +143,7 @@ document.querySelectorAll('[data-event]').forEach(button=>button.onclick=async()
 $('open-deals').onclick=()=>{showView('inventory');$('deal-desk').scrollIntoView({behavior:'smooth'});};
 function renderMobile(){
  const search=$('menu-search').value.trim().toLowerCase();
- $('mobile-open').textContent=state.minute<CLOSE-5?'Offers available · demo '+simTime(state.minute):'Offers ended for today';
+ $('mobile-open').textContent=state.minute<hoursFor(state).close-5?'Offers available · demo '+simTime(state.minute):'Offers ended for today';
  $('mobile-updated').textContent='Updated '+simTime(state.minute);
  const drops=CATALOG.map(p=>productView(state,p.id)).filter(p=>p.quantity>0&&p.saving>0);
  $('mobile-drops').hidden=!drops.length;
@@ -165,9 +165,10 @@ $('mobile-drops').onclick=e=>{if(e.target.closest('#show-price-drops')){dealsOnl
 function add(id){const p=productView(state,id);if((basket[id]||0)>=p.quantity){toast('All available '+p.symbol+' units are already in your basket.');return;}basket[id]=(basket[id]||0)+1;renderBasket();toast(p.name+' added.');}
 $('mobile-menu').onclick=e=>{const b=e.target.closest('[data-add]');if(b)add(b.dataset.add);};
 $('mobile-promotion').onclick=e=>{if(e.target.id==='add-combo'){const c=comboView(state);if(c.available){for(const p of c.products)add(p.id);}}};
-$('categories').onclick=()=>$('category-dialog').showModal();
+$('categories').onclick=()=>{$('category-dialog').showModal();$('categories').setAttribute('aria-expanded','true');};
+$('category-dialog').addEventListener('close',()=>$('categories').setAttribute('aria-expanded','false'));
 $('category-links').innerHTML=CATEGORIES.map((c,i)=>'<button data-category="'+i+'">'+c+'</button>').join('');
-$('category-links').onclick=e=>{const b=e.target.closest('[data-category]');if(!b)return;$('menu-search').value='';dealsOnly=false;renderMobile();$('category-dialog').close();$('mobile-category-'+b.dataset.category)?.scrollIntoView({behavior:'smooth',block:'start'});};
+$('category-links').onclick=e=>{const b=e.target.closest('[data-category]');if(!b)return;$('menu-search').value='';dealsOnly=false;renderMobile();$('category-dialog').close();const section=$('mobile-category-'+b.dataset.category),phone=$('phone-scroll');if(section)phone.scrollTo({top:section.getBoundingClientRect().top-phone.getBoundingClientRect().top+phone.scrollTop-document.querySelector('.mobile-search').offsetHeight,behavior:'smooth'});};
 $('mobile-info').onclick=()=>$('info-dialog').showModal();
 document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('dialog').close());
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}}));
@@ -181,7 +182,7 @@ $('basket-open').onclick=()=>{renderBasket();$('basket-dialog').showModal();};
 $('basket-items').onclick=e=>{const id=e.target.closest('[data-remove]')?.dataset.remove;if(!id)return;if(--basket[id]===0)delete basket[id];renderBasket();};
 $('checkout').onclick=async()=>{let success=false;await change(s=>{const result=basketQuote(s,basket);success=true;return result.state;});if(success){basket={};renderBasket();$('basket-dialog').close();toast('Demo purchase complete. Case inventory updated.');}};
 function render(previous){
- renderHome();renderDesk();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
+ renderHours();renderSustainability();renderHome();renderDesk();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
  $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-live-time').textContent='DEMO / '+simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;
  $('total-stock').textContent=state.batches.reduce((n,b)=>n+offerAvailable(state,b),0);$('total-sold').textContent=state.sold;updatePlayback();caseScene?.setState(state);
 }
@@ -198,7 +199,21 @@ document.addEventListener('visibilitychange',()=>{if(!document.hidden)syncLatest
 let toolsTimer;if(displayOnly)window.addEventListener('pointermove',()=>{document.body.classList.add('show-tools');clearTimeout(toolsTimer);toolsTimer=setTimeout(()=>document.body.classList.remove('show-tools'),2500);});
 function clock(){const now=new Date();$('clock').textContent=timeFormat.format(now);$('clock').dateTime=now.toISOString();}
 
-let deskSignature='',planDirty=false;
+let deskSignature='',planDirty=false,hoursSignature='',hoursDirty=false;
+const clockInput=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).padStart(2,'0');
+const minuteInput=value=>{if(!/^\d{2}:\d{2}$/.test(value))throw new Error('Choose opening and closing times.');const [h,m]=value.split(':').map(Number);return h*60+m;};
+function renderHours(){
+ const {open,close}=hoursFor(state),signature=open+':'+close;
+ if(signature!==hoursSignature&&!hoursDirty){$('hours-open').value=clockInput(open);$('hours-close').value=clockInput(close);hoursSignature=signature;}
+ for(const id of ['day-slider','mobile-day-slider']){$(id).min=open;$(id).max=close;}
+ $('timeline-labels').innerHTML='<span>'+simTime(open)+' · Open</span><span>'+simTime(close-120)+' · Review</span><span>'+simTime(close)+' · Close</span>';
+ $('mobile-hours').textContent='Cafe hours · '+simTime(open)+'–'+simTime(close);rushAvailability();
+}
+function renderSustainability(){
+ $('sustainability-counts').innerHTML=[['Surplus items sold',state.surplusSold],['Transferred',state.transferred],['Retained at close',state.retained],['Discarded',state.discarded]].map(([label,value])=>'<div><strong>'+value+'</strong><span>'+label+'</span></div>').join('');
+}
+$('hours-form').oninput=()=>{hoursDirty=true;$('hours-status').textContent='Unsaved hours';};
+$('hours-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=structuredClone(settingsFor(s));cfg.hours={open:minuteInput($('hours-open').value),close:minuteInput($('hours-close').value)};const next=startPlannedDay(s,cfg);hoursDirty=false;decision=null;basket={};$('hours-status').textContent='Hours applied · new day started';toast('Cafe hours updated on every screen.');return next;});};
 const settingsCopy=()=>structuredClone(settingsFor(state));
 function renderHome(){
  $('home-quotes').innerHTML=FEATURED.map(id=>{const p=productView(state,id);return '<div class="quote-row"><span><b>'+p.symbol+'</b><small>'+escape(p.name)+'</small></span><strong>'+(p.quantity?money(p.price):'—')+'</strong><em>'+(p.quantity&&p.saving?'Save '+money(p.saving):'—')+'</em></div>';}).join('');
@@ -227,8 +242,13 @@ function receiveDefaults(){const m=settingsFor(state).menu[$('receive-product').
 $('receive-product').onchange=receiveDefaults;
 $('receive-form').onsubmit=e=>{e.preventDefault();change(s=>{const next=receiveStock(s,$('receive-product').value,Number($('receive-quantity').value),cents($('receive-price').value),cents($('receive-floor').value),cents($('receive-cost').value));toast('Fresh batch received. Case and menus updated.');return next;});};
 $('recount-batch').onclick=()=>change(s=>recountBatch(s,$('decision-batch').value,Number($('physical-count').value))).then(()=>{decision=null;renderDecision();});
-function rushDefaults(){const r=settingsFor(state).rushes[$('rush-type').value];$('rush-time').value=String(Math.floor(r.at/60)).padStart(2,'0')+':'+String(r.at%60).padStart(2,'0');$('rush-orders').value=r.orders;$('rush-duration').value=r.duration;}
+function rushDefaults(){const r=settingsFor(state).rushes[$('rush-type').value];$('rush-time').value=String(Math.floor(r.at/60)).padStart(2,'0')+':'+String(r.at%60).padStart(2,'0');$('rush-orders').value=r.orders;$('rush-duration').value=r.duration;rushAvailability();}
 $('rush-type').onchange=rushDefaults;
+function rushAvailability(){
+ const {open,close}=hoursFor(state);let at;try{at=minuteInput($('rush-time').value);}catch{at=NaN;}const duration=Number($('rush-duration').value),outside=!Number.isInteger(at)||at<open||at+duration>close-5;
+ $('start-rush').disabled=outside;$('rush-hours-note').hidden=!outside;$('rush-hours-note').textContent='Choose a rush between '+simTime(open)+' and '+simTime(close-5)+', or extend hours in Cafe Desk.';
+}
+for(const id of ['rush-time','rush-duration'])$(id).addEventListener('input',rushAvailability);
 function rushSettings(){
  const cfg=settingsCopy(),value=$('rush-time').value;if(!/^\d{2}:\d{2}$/.test(value))throw new Error('Choose a rush time.');
  const [h,m]=value.split(':').map(Number);cfg.rushes[$('rush-type').value]={at:h*60+m,orders:Number($('rush-orders').value),duration:Number($('rush-duration').value)};return cfg;

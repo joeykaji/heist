@@ -1,10 +1,11 @@
 # MarketBite / Connections Cafe
 
-Five connected browser views:
+Six connected browser views:
 - ?view=home — company goals, sustainability story and verified team LinkedIn links.
 - ?view=tv — 16:9 menu studio; ?display=1 opens the clean TV display.
 - ?view=simulation — adjustable 3D case, day replay, customizable breakfast/lunch/dinner rushes, events and charts.
 - ?view=mobile — scrollable food menu, search, category sheet, deals, day playback and simulated basket.
+- ?view=sustainability — resource goals, demo food movement and future pilot measurement.
 - ?view=inventory — Cafe Desk: opening plan, fresh deliveries, recounts, offer review and expanded deals.
 
 Run: node server.mjs (http://127.0.0.1:4173). Test: node --test test/*.test.mjs.
@@ -16,7 +17,7 @@ dist/pricing.mjs implements the equations/status order in the user-supplied Mark
 
 The browser demo adapter in model.mjs explicitly supplies synthetic, reviewed-for-demo fixtures. These fixtures are not claims about Connections Cafe's economics or customer demand. Each batch/window may commit one evaluated HOLD or one acknowledged MARKDOWN. Restocking creates a separate fresh batch; it never relabels residual inventory. Recommendation, authorization, simulated acknowledgment and publication are separate functions/states. Failed simulated checkout updates do not publish a lower price.
 
-Physical stock, reserved units, protected allocations and buffer units are distinct. Offer stock is I-R-G-B. New offers withdraw five minutes before the 6 PM cutoff; simulated observations refresh every replay tick. At closing, protected stock is recorded as transferred and remaining physical units as retained, not automatically discarded. Those are scripted ledger outcomes, not verified sustainability impact.
+Physical stock, reserved units, protected allocations and buffer units are distinct. Offer stock is I-R-G-B. New offers withdraw five minutes before the configured closing time (3 PM by default); simulated observations refresh every replay tick. At closing, protected stock is recorded as transferred and remaining physical units as retained, not automatically discarded. Those are scripted ledger outcomes, not verified sustainability impact.
 
 Stock crash and last-call events request guarded evaluations; they do not force markdowns. Study Buddy is an independently priced food pairing, without a shared-stock bundle discount or joint optimization. Price charts show an individual batch's positive confirmed prices and stop at withdrawal. Demand is a separate scripted index.
 
@@ -35,3 +36,5 @@ Opening plans apply on a new demo day. Receiving food creates a fresh batch with
 Tests cover price rounding/floors, fees and activation, scenario caps, missing and invalid inputs, strict/inclusive gates, downside protection, weight normalization, tie-breaking, holds, idempotence, failed publication, stale execution, reserved/protected stock, new batch identity, exact basket allocation, cutoff behavior, state validation and a conserved day replay. Browser checks cover the TV, mobile search/basket/category flow, 3D renderer and event controls.
 
 Vendors: Three.js 0.160.1 (MIT); Decimal.js 10.4.3 (MIT). Both are served locally; license notices remain in the files.
+
+Cafe hours default to 7 AM–3 PM. Cafe Desk accepts same-day hours at least two hours apart; applying them starts a new day with the saved opening plan. Replay, charts, review windows, arrivals, and closing follow those hours. Rushes outside opening hours stay saved but do not run. Earlier saved plans migrate to the new hours, keeping menu prices and rush/deal settings; the old run is backed up locally. Fonts: DM Sans and Manrope (SIL OFL, notices in assets), with Roboto Slab branding.
