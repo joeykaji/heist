@@ -60,9 +60,12 @@ for(const x of [-W/2,W/2])box(display,.01,H-.1,D-.1,x,H/2+.24,0,glass);
 box(display,W,.012,D,0,H+.2,0,glass);
 const glintMat=new T.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.075,depthWrite:false,side:T.DoubleSide});
 for(const x of [-2.8,1.8]){const glint=box(display,.13,3.9,.002,x,2.45,D/2+.012,glintMat);glint.rotation.z=-.22;glint.castShadow=false;}
-const logoTexture=new T.TextureLoader().load('assets/marketbite-logo.png');
-logoTexture.colorSpace=T.SRGBColorSpace;logoTexture.repeat.set(2200/2880,480/1620);logoTexture.offset.set(340/2880,1-1000/1620);
-const logoSign=mesh(display,new T.PlaneGeometry(1.03,.225),new T.MeshBasicMaterial({map:logoTexture,toneMapped:false}),0,.16,D/2+.047);logoSign.castShadow=false;
+function sign(text,w,h,x,y,z){
+ const c=document.createElement('canvas');c.width=1024;c.height=128;const ctx=c.getContext('2d');
+ ctx.fillStyle='#111315';ctx.fillRect(0,0,1024,128);ctx.fillStyle='#eee9dd';ctx.textAlign='center';ctx.textBaseline='middle';ctx.font='500 46px Arial, sans-serif';ctx.fillText(text,512,64);
+ const tex=new T.CanvasTexture(c);tex.colorSpace=T.SRGBColorSpace;const o=mesh(display,new T.PlaneGeometry(w,h),new T.MeshBasicMaterial({map:tex}),x,y,z);o.castShadow=false;
+}
+sign('M A R K E T B I T E',2.05,.16,0,.15,D/2+.047);
 function layer(parent,y,thickness,material,scale=1){
  const s=new T.Shape();s.moveTo(-.43*scale,-.31*scale);s.lineTo(.43*scale,-.31*scale);s.lineTo(-.43*scale,.31*scale);s.closePath();
  const g=new T.ExtrudeGeometry(s,{depth:thickness,bevelEnabled:true,bevelSegments:1,bevelSize:.012,bevelThickness:.007,steps:1});g.rotateX(-Math.PI/2);

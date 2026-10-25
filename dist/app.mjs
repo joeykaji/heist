@@ -130,8 +130,8 @@ $('fail-price').onclick=()=>{const d=decision;if(d)change(s=>executeDemoDecision
 $('save-allocations').onclick=()=>change(s=>setAllocations(s,$('decision-batch').value,Number($('reserved').value),Number($('protected').value),Number($('buffer').value))).then(()=>{decision=null;renderDecision();});
 $('scenario-profile').onchange=()=>{decision=null;renderDecision();};
 function updatePlayback(){
- for(const id of ['pause-day','mobile-pause','mobile-mini-play']){$(id).textContent=playing?'Pause':'Play';$(id).disabled=!playing&&state.minute>=hoursFor(state).close;}
- for(const id of ['run-day','mobile-replay','mobile-mini-replay'])$(id).textContent='Restart';
+ for(const id of ['pause-day','mobile-pause']){$(id).textContent=playing?'Pause':'Play';$(id).disabled=!playing&&state.minute>=hoursFor(state).close;}
+ for(const id of ['run-day','mobile-replay'])$(id).textContent='Restart';
 }
 function pause(){clearInterval(timer);timer=null;playing=false;updatePlayback();}
 function start(){if(state.minute>=hoursFor(state).close)return;clearInterval(timer);playing=true;updatePlayback();timer=setInterval(async()=>{await change(s=>stepSimulation(s,5),{stop:false});if(state.minute>=hoursFor(state).close)pause();},60000/((hoursFor(state).close-hoursFor(state).open)/5)/settingsFor(state).traffic.speed);}
@@ -280,8 +280,8 @@ function applyDeal(launch){if(!$('deal-form').reportValidity())return;change(s=>
 $('deal-form').onsubmit=e=>{e.preventDefault();applyDeal(false);};
 $('launch-deal').onclick=()=>applyDeal(true);
 $('end-deal').onclick=()=>change(s=>endDeal(s));
-$('mobile-replay').onclick=$('run-day').onclick;$('mobile-mini-replay').onclick=$('run-day').onclick;
-$('mobile-pause').onclick=$('pause-day').onclick;$('mobile-mini-play').onclick=$('pause-day').onclick;
+$('mobile-replay').onclick=$('run-day').onclick;
+$('mobile-pause').onclick=$('pause-day').onclick;
 $('mobile-day-slider').oninput=$('day-slider').oninput;
 renderDeskForms(settingsFor(state));
 clock();setInterval(clock,1000);if(!read())save();showView(view,false);
