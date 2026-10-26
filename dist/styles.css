@@ -175,3 +175,9 @@ button,.primary-button,.secondary-button{display:inline-flex;align-items:center;
 .tv-only #view-tv>.preview-section:has(.display-playback),.tv-only .display-seek-note{display:none}
 @media(max-width:900px){.display-playback{flex-wrap:wrap;gap:16px}.playback-timeline{max-width:none;flex-basis:calc(100% - 90px);margin-left:0}.playback-actions{flex-basis:100%}}
 @media(max-width:600px){.display-playback{padding:14px;gap:14px}.playback-actions{flex-wrap:wrap;gap:7px}.playback-actions button{min-width:72px;padding-inline:12px}.playback-actions label{margin-left:auto}.playback-timeline{min-width:120px}.playback-status{font-size:11px;min-width:46px}}
+
+/* Setup follows the saved plan; live adjustments follow playback. */
+.traffic-form>.desk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.traffic-form>.desk-grid label:last-child{grid-column:auto}
+.simulation-guide{max-width:78ch;margin:10px 0 0;color:var(--muted);font-size:15px;line-height:1.65}.simulation-replay-note{margin:10px 0 24px;color:var(--muted);font-size:13px;line-height:1.6}
+#deal-desk>.deal-preview{margin:0 22px 22px}#shelf-desk{margin-top:24px}
+@media(max-width:600px){.traffic-form>.desk-grid{grid-template-columns:1fr}.simulation-guide{font-size:14px}}

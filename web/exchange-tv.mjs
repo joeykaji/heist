@@ -8,7 +8,7 @@ export function tickerMarkup(state){
  }).join('');
 }
 export function sparkline(batch,state){
- if(!batch)return '<span class="exchange-no-history">No active batch</span>';
+ if(!batch)return '<span class="exchange-no-history">No Active Batch</span>';
  if(batch.closed||(batch.terminalAt!=null&&batch.terminalAt<=state.minute)||offerAvailable(state,batch)<=0)return ''; 
  const end=Math.min(state.minute,batch.terminalAt??Infinity,batch.cutoff-batch.fulfillment_buffer_minutes,batch.observedAt+state.policy.max_count_age_minutes);
  const points=chartSamples(batch.priceEvents.filter(p=>p.at<=end)),start=points[0]?.at??end,span=Math.max(1,batch.cutoff-start),x=t=>6+(t-start)/span*168,y=p=>54-p/batch.original_cents*44;
@@ -20,7 +20,7 @@ export function exchangeRows(state,page=0,category='all'){
  const products=exchangeProducts(state,category).slice(page*12,page*12+12);
  return [products.slice(0,6),products.slice(6,12)].map(column=>'<div class="exchange-column"><div class="exchange-labels"><span>ITEM / AVAILABLE</span><span>PRICE / WAS</span><span>HISTORY</span></div>'+column.map(product=>{
  const p=productView(state,product.id),batch=state.batches.find(b=>b.id===p.batchId)??state.batches.filter(b=>b.productId===product.id).at(-1),available=p.quantity>0;
- return '<article class="exchange-row"><div class="exchange-item"><strong>'+esc(p.name)+'</strong><small>'+esc(p.symbol)+' · '+(available?p.quantity+' available':'Unavailable')+'</small></div><div class="exchange-price"><strong>'+(available?money(p.price):'—')+'</strong><small class="'+(available&&p.saving?'exchange-saving':'')+'">'+(available?(p.saving?'<s>Was '+money(p.base)+'</s>':'Regular price'):(batch?'Last '+money(batch.current_cents):'No offer'))+'</small></div><div class="exchange-spark">'+sparkline(batch,state)+'</div></article>';
+ return '<article class="exchange-row"><div class="exchange-item"><strong>'+esc(p.name)+'</strong><small>'+esc(p.symbol)+' · '+(available?p.quantity+' available':'Unavailable')+'</small></div><div class="exchange-price"><strong>'+(available?money(p.price):'—')+'</strong><small class="'+(available&&p.saving?'exchange-saving':'')+'">'+(available?(p.saving?'<s>Was '+money(p.base)+'</s>':'Regular Price'):(batch?'Last '+money(batch.current_cents):'No Offer'))+'</small></div><div class="exchange-spark">'+sparkline(batch,state)+'</div></article>';
  }).join('')+'</div>').join('');
 }
 export function createExchange(){

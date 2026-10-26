@@ -44,13 +44,15 @@ Open **http://127.0.0.1:4173**. The development command builds the browser asset
 
 ## Configure a Cafe Day
 
-Cafe Desk organizes setup into five sections:
+Cafe Desk follows a setup → simulation → live review workflow. Apply each section before moving to the next.
 
 1. **Hours & Day** — Set same-day opening and closing times, at least two hours apart.
-2. **Menu & Opening Stock** — Add or hide products and edit names, ticker symbols, categories, quantities, prices, and images. Choose a supplied photo, no photo, or a custom HTTPS image URL.
-3. **Traffic & Rushes** — Set in-person and mobile purchase rates, rush schedules, multipliers, and playback speed.
-4. **Pricing & Offers** — Configure review intervals, discount limits, costs, fees, minimum contribution, Food Bundles, and Market Crash announcements.
-5. **Live Stock & Review** — Receive deliveries, reconcile counts, and review manual price adjustments.
+2. **Menu & Starting Prices** — Add or hide products and edit names, ticker symbols, categories, opening quantities, prices, and images. Choose a supplied photo, no photo, or a custom HTTPS image URL.
+3. **Pricing Rules** — Configure review intervals, discount limits, selling fees, and minimum contribution. Product costs and minimum prices are set with the menu.
+4. **Customer Traffic & Rushes** — Set in-person and mobile purchase rates, rush schedules, and multipliers.
+5. **Scheduled Offers** — Configure a Food Bundle or Market Crash and choose when it runs.
+6. **The Cafe Day** — Play the saved plan, adjust playback speed, launch events, and watch the 3D case, charts, and activity.
+7. **Live Stock & Price Review** — Optionally receive deliveries, reconcile counts, and review manual price adjustments during the day.
 
 Changes to the saved opening plan replay the day to the current simulated time. Moving the timeline also rebuilds the day from that plan; **Restart** returns to opening time and pauses playback. A fresh delivery creates a separate batch with its own pricing history.
 
@@ -178,3 +180,7 @@ Browser acceptance results and outstanding accessibility checks are documented i
 The Connections Cafe menu was transcribed from supplied screenshots, with duplicate listings consolidated and beverages excluded. Food photography is AI-generated and representative; logos were supplied by the project team. See [`dist/image-notes.txt`](dist/image-notes.txt) and [`dist/image-prompts.json`](dist/image-prompts.json) for provenance.
 
 Third-party libraries include **Three.js 0.160.1** and **Decimal.js 10.4.3**, distributed under the MIT License. Both are served locally with their license notices. Typography uses DM Sans, Manrope, and Roboto Slab; applicable font notices are retained with the assets.
+
+## Interface Copy
+
+Titles, controls, and field labels use a consistent capitalization standard. See [UI copy conventions](docs/ui-copy.md) when adding or editing interface text.

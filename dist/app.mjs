@@ -50,7 +50,7 @@ function renderTV(previous){
  $('page-number').textContent=(page+1)+' / '+pages;$('prev-page').disabled=pages<2;$('next-page').disabled=pages<2;
  $('product-grid').innerHTML=products.slice(page*6,page*6+6).map(product=>{
   const p=productView(state,product.id),was=previous&&catalogFor(previous).some(f=>f.id===p.id)?productView(previous,p.id):null;
-  return '<article class="food-card '+(p.saving?'discounted ':'')+(!p.quantity?'sold-out ':'')+(was&&p.price<was.price?'updated':'')+'" aria-label="'+escape(p.name)+' '+(p.quantity?money(p.price):'unavailable')+'"><div class="food-photo"><img src="'+escape(p.image)+'" alt="'+escape(p.name)+'"><span class="food-badge '+(p.quantity&&!p.saving?'regular':'')+'">'+(!p.quantity?'UNAVAILABLE':p.saving?'↓ '+pct(p.discount)+'% OFF':p.category.toUpperCase())+'</span>'+(p.quantity?'<span class="stock-badge '+(p.offerQuantity<=3?'low':'')+'">'+p.offerQuantity+' AVAILABLE</span>':'')+'</div><div class="food-info"><div><span class="food-symbol">'+escape(p.symbol)+'</span><h2 class="food-name">'+escape(p.name)+'</h2></div><div class="food-price"><strong>'+(p.quantity?money(p.price):'Unavailable')+'</strong><span class="old-price">'+(p.quantity?(p.saving?'<s>Was '+money(p.base)+'</s>':'Regular price'):'')+'</span></div></div></article>';
+  return '<article class="food-card '+(p.saving?'discounted ':'')+(!p.quantity?'sold-out ':'')+(was&&p.price<was.price?'updated':'')+'" aria-label="'+escape(p.name)+' '+(p.quantity?money(p.price):'unavailable')+'"><div class="food-photo"><img src="'+escape(p.image)+'" alt="'+escape(p.name)+'"><span class="food-badge '+(p.quantity&&!p.saving?'regular':'')+'">'+(!p.quantity?'UNAVAILABLE':p.saving?'↓ '+pct(p.discount)+'% OFF':p.category.toUpperCase())+'</span>'+(p.quantity?'<span class="stock-badge '+(p.offerQuantity<=3?'low':'')+'">'+p.offerQuantity+' AVAILABLE</span>':'')+'</div><div class="food-info"><div><span class="food-symbol">'+escape(p.symbol)+'</span><h2 class="food-name">'+escape(p.name)+'</h2></div><div class="food-price"><strong>'+(p.quantity?money(p.price):'Unavailable')+'</strong><span class="old-price">'+(p.quantity?(p.saving?'<s>Was '+money(p.base)+'</s>':'Regular Price'):'')+'</span></div></div></article>';
  }).join('');
  const offers=foods().map(p=>productView(state,p.id)).filter(p=>p.quantity&&p.saving);
  const promotion=state.promotion;
@@ -81,7 +81,7 @@ document.addEventListener('error',e=>{if(e.target instanceof HTMLImageElement&&e
 function renderInventory(){
  const cat=$('inventory-category').value;
  $('inventory-list').innerHTML=foods().filter(p=>cat==='all'||p.category===cat).map(product=>{
- const p=productView(state,product.id);return '<div class="inventory-row"><div class="inventory-product"><img src="'+escape(p.image)+'" alt=""><div><strong>'+escape(p.name)+'</strong><span>'+escape(p.symbol)+' · '+p.quantity+' available</span></div></div><div class="inventory-values"><b>'+(p.quantity?money(p.price):'—')+'</b><span>Regular '+money(p.base)+'</span></div><div class="inventory-actions"><button data-sell="'+p.id+'" '+(!p.quantity?'disabled':'')+'>Sell 1</button><button data-restock="'+p.id+'" '+(state.minute>=hoursFor(state).close-5?'disabled':'')+'>+4 fresh</button><button data-review="'+p.id+'">Review</button></div></div>';
+ const p=productView(state,product.id);return '<div class="inventory-row"><div class="inventory-product"><img src="'+escape(p.image)+'" alt=""><div><strong>'+escape(p.name)+'</strong><span>'+escape(p.symbol)+' · '+p.quantity+' available</span></div></div><div class="inventory-values"><b>'+(p.quantity?money(p.price):'—')+'</b><span>Regular '+money(p.base)+'</span></div><div class="inventory-actions"><button data-sell="'+p.id+'" '+(!p.quantity?'disabled':'')+'>Sell 1</button><button data-restock="'+p.id+'" '+(state.minute>=hoursFor(state).close-5?'disabled':'')+'>+4 Fresh</button><button data-review="'+p.id+'">Review</button></div></div>';
  }).join('');
 }
 $('inventory-category').onchange=renderInventory;
@@ -93,7 +93,7 @@ $('inventory-list').onclick=e=>{
 };
 function renderActivity(){
  $('activity-list').replaceChildren(...state.events.slice(0,8).map(e=>{const li=document.createElement('li'),t=document.createElement('time'),span=document.createElement('span');t.textContent=simTime(e.at);span.textContent=e.text;if(e.kind==='drop')span.className='event-drop';li.append(t,span);return li;}));
- $('activity-count').textContent='Latest updates';
+ $('activity-count').textContent='Latest Updates';
  $('impact-stats').textContent=state.surplusSold+' discounted sales · '+state.transferred+' transferred · '+state.retained+' retained · '+state.discarded+' discarded (demo).';
 }
 function batchOptions(){
@@ -113,7 +113,7 @@ function chart(id,points,max,format,step=false,end=state.minute,color='#0f2d44')
 }
 function renderCharts(){
  const b=state.batches.find(b=>b.id===$('chart-batch').value)||state.batches[0],available=offerAvailable(state,b)>0;
- $('chart-price').textContent=available?money(b.current_cents):'Offer unavailable';
+ $('chart-price').textContent=available?money(b.current_cents):'Offer Unavailable';
  const terminal=b.terminalAt??(available?state.minute:Math.min(state.minute,b.observedAt+state.policy.max_count_age_minutes));
  chart('price-chart',chartSamples(b.priceEvents).map(e=>({at:e.at,value:e.price})),b.original_cents,v=>'$'+(v/100).toFixed(2),false,terminal);
  $('chart-stock').textContent=state.history.at(-1).stock+' units';
@@ -134,8 +134,8 @@ function renderDecision(){
  $('publish-price').hidden=true;$('fail-price').hidden=true;
  if(!decision){$('decision-result').innerHTML='<p>Physical '+b.physical_units+' − reserved '+b.reserved_units+' − protected '+b.protected_units+' − buffer '+b.buffer_units+' = '+rawAvailable(b)+' offer units. '+(b.window_committed?'Dynamic pricing is active.':'Prices update with time and purchases.')+'</p>';return;}
  const d=decision;
- $('decision-result').innerHTML='<span class="result-status '+d.status.toLowerCase()+'">'+d.status+'</span><p>'+escape(d.reason)+'</p>'+(d.floor_cents!==null?'<p>Floor '+money(d.floor_cents)+' · '+d.available+' offer units'+''+'</p>':'')+(d.rows.length?'<table><thead><tr><th>Candidate</th><th>Expected sales</th><th>Expected gain</th><th>Worst listed gain</th><th>Passes gates</th></tr></thead><tbody>'+d.rows.map(r=>'<tr class="'+(r.admissible?'accepted':'')+'"><td>'+money(r.price_cents)+(r.price_cents===d.price_cents?' · selected':'')+'</td><td>'+r.expected_sales.toFixed(2)+'</td><td>'+money(r.expected_gain_cents)+'</td><td>'+money(r.worst_gain_cents)+'</td><td>'+(r.admissible?'Yes':r.price_cents===b.current_cents?'Baseline':'No')+'</td></tr>').join('')+'</tbody></table>':'');
- if(d.evaluation_completed){$('publish-price').hidden=false;$('publish-price').textContent=d.status!=='HOLD'?'Publish '+money(d.price_cents)+' to demo screens':'Keep this price for this batch';$('fail-price').hidden=d.status==='HOLD';}
+ $('decision-result').innerHTML='<span class="result-status '+d.status.toLowerCase()+'">'+d.status+'</span><p>'+escape(d.reason)+'</p>'+(d.floor_cents!==null?'<p>Floor '+money(d.floor_cents)+' · '+d.available+' offer units'+''+'</p>':'')+(d.rows.length?'<table><thead><tr><th>Candidate</th><th>Expected Sales</th><th>Expected Gain</th><th>Worst Listed Gain</th><th>Passes Gates</th></tr></thead><tbody>'+d.rows.map(r=>'<tr class="'+(r.admissible?'accepted':'')+'"><td>'+money(r.price_cents)+(r.price_cents===d.price_cents?' · selected':'')+'</td><td>'+r.expected_sales.toFixed(2)+'</td><td>'+money(r.expected_gain_cents)+'</td><td>'+money(r.worst_gain_cents)+'</td><td>'+(r.admissible?'Yes':r.price_cents===b.current_cents?'Baseline':'No')+'</td></tr>').join('')+'</tbody></table>':'');
+ if(d.evaluation_completed){$('publish-price').hidden=false;$('publish-price').textContent=d.status!=='HOLD'?'Publish '+money(d.price_cents)+' to Demo Screens':'Keep Current Price';$('fail-price').hidden=d.status==='HOLD';}
 }
 $('publish-price').onclick=()=>{const d=decision;if(!d)return;change(s=>executeDemoDecision(s,d.batchId,d,true,true,'manual-'+d.windowId+'-'+d.checkoutVersion)).then(()=>{decision=null;renderDecision();});};
 $('fail-price').onclick=()=>{const d=decision;if(d)change(s=>executeDemoDecision(s,d.batchId,d,true,false,'failed-'+d.windowId));};
@@ -192,7 +192,7 @@ function renderMobile(){
  $('clear-drops').hidden=!dealsOnly;
  renderAlerts(drops);
  const promo=state.promotion,c=comboView(state);
- $('mobile-promotion').innerHTML=promo?'<div class="mobile-deal"><strong>'+escape(promo.title||({crash:'The Market Crash',combo:'Study Buddy Bundle',rush:'Rush Is On',rescue:'Closing Rush'}[promo.kind]))+'</strong><p>'+({crash:'Watch eligible bakery prices at each scheduled review. Catch your favorite while it lasts.',combo:c.products.map(p=>escape(p.name)).join(' & ')+' · '+money(c.total)+' together. Each item keeps its confirmed price.',rush:'The '+escape(promo.rushType||'lunch')+' rush is on. Prices follow the live market.',rescue:'Find eligible surplus offers before the selling window closes.'}[promo.kind])+'</p><p>Event ends at '+simTime(promo.until)+'</p>'+(promo.kind==='combo'?'<button id="add-combo" '+(!c.available?'disabled':'')+'>'+(c.available?'Add both to basket':'Bundle unavailable')+'</button>':'')+'</div>':'';
+ $('mobile-promotion').innerHTML=promo?'<div class="mobile-deal"><strong>'+escape(promo.title||({crash:'The Market Crash',combo:'Study Buddy Bundle',rush:'Rush Is On',rescue:'Closing Rush'}[promo.kind]))+'</strong><p>'+({crash:'Watch eligible bakery prices at each scheduled review. Catch your favorite while it lasts.',combo:c.products.map(p=>escape(p.name)).join(' & ')+' · '+money(c.total)+' together. Each item keeps its confirmed price.',rush:'The '+escape(promo.rushType||'lunch')+' rush is on. Prices follow the live market.',rescue:'Find eligible surplus offers before the selling window closes.'}[promo.kind])+'</p><p>Event ends at '+simTime(promo.until)+'</p>'+(promo.kind==='combo'?'<button id="add-combo" '+(!c.available?'disabled':'')+'>'+(c.available?'Add Bundle to Basket':'Bundle Unavailable')+'</button>':'')+'</div>':'';
  const matches=onMenu().filter(p=>(!search||(p.name+' '+escape(p.symbol)+' '+p.category).toLowerCase().includes(search))&&(!dealsOnly||(productView(state,p.id).saving>0&&productView(state,p.id).quantity>0)));
  $('mobile-menu').innerHTML=matches.length?CATEGORIES.map((category,i)=>{
  const products=matches.filter(p=>p.category===category);if(!products.length)return '';
@@ -229,8 +229,8 @@ document.querySelectorAll('[data-close]').forEach(b=>b.onclick=()=>b.closest('di
 document.querySelectorAll('dialog').forEach(d=>d.addEventListener('click',e=>{if(e.target===d){const r=d.getBoundingClientRect();if(e.clientX<r.left||e.clientX>r.right||e.clientY<r.top||e.clientY>r.bottom)d.close();}}));
 function renderBasket(){
  const count=Object.values(basket).reduce((a,b)=>a+b,0);let total=null;try{total=basketQuote(state,basket).total;}catch{}
- $('basket-open').hidden=!count;$('basket-label').textContent=count+' item'+(count===1?'':'s')+' · View basket';$('basket-total').textContent=total===null?'Review stock':money(total);
- $('basket-items').innerHTML=Object.entries(basket).map(([id,n])=>{const p=productView(state,id);return '<div><div><strong>'+escape(p.name)+'</strong><small>'+n+' × current offer '+money(p.price)+(n>p.quantity?' · exceeds stock':'')+'</small></div><button data-remove="'+id+'" aria-label="Remove one '+escape(p.name)+'">−</button></div>';}).join('')+(count?'<div><strong>Current total</strong><strong>'+(total===null?'Review stock':money(total))+'</strong></div>':'<p>Your basket is empty.</p>');
+ $('basket-open').hidden=!count;$('basket-label').textContent=count+' item'+(count===1?'':'s')+' · View Basket';$('basket-total').textContent=total===null?'Review Stock':money(total);
+ $('basket-items').innerHTML=Object.entries(basket).map(([id,n])=>{const p=productView(state,id);return '<div><div><strong>'+escape(p.name)+'</strong><small>'+n+' × current offer '+money(p.price)+(n>p.quantity?' · exceeds stock':'')+'</small></div><button data-remove="'+id+'" aria-label="Remove one '+escape(p.name)+'">−</button></div>';}).join('')+(count?'<div><strong>Current Total</strong><strong>'+(total===null?'Review Stock':money(total))+'</strong></div>':'<p>Your basket is empty.</p>');
  $('checkout').disabled=!count||total===null;
 }
 $('basket-open').onclick=()=>{renderBasket();$('basket-dialog').showModal();};
@@ -292,7 +292,7 @@ function renderSustainability(){
  $('impact-offers').innerHTML=r.offers.length?r.offers.slice(0,5).map(p=>'<tr><th scope="row"><span class="impact-food"><img src="'+escape(p.image)+'" alt="" loading="lazy"><span>'+escape(p.name)+'<small>'+escape(p.symbol)+'</small></span></span></th><td>'+money(p.price)+'</td><td>↓ '+pct(p.discount)+'%</td><td>'+p.offerQuantity+'</td></tr>').join(''):'<tr><td colspan="4" class="impact-empty">'+(r.closed?'The cafe day is complete. Restart to explore another day.':'As prices change, available surplus offers will appear here.')+'</td></tr>';
 }
 $('hours-form').oninput=()=>{hoursDirty=true;$('hours-status').textContent='Unsaved hours';};
-$('hours-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=structuredClone(settingsFor(s));cfg.hours={open:minuteInput($('hours-open').value),close:minuteInput($('hours-close').value)};const next=applyPlan(s,cfg);hoursDirty=false;decision=null;basket={};$('hours-status').textContent='Hours Applied';toast('Cafe hours updated on every screen.');return next;});};
+$('hours-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=structuredClone(settingsFor(s));cfg.hours={open:minuteInput($('hours-open').value),close:minuteInput($('hours-close').value)};const next=applyPlan(s,cfg);hoursDirty=false;decision=null;basket={};$('hours-status').textContent='Hours applied.';toast('Cafe hours updated on every screen.');return next;});};
 const settingsCopy=()=>structuredClone(settingsFor(state));
 function photoOptions(image=BLANK_FOOD_IMAGE){
  const custom=image!==BLANK_FOOD_IMAGE&&!CATALOG.some(p=>p.image===image);
@@ -323,7 +323,7 @@ function openingSettings(){
  return cfg;
 }
 function cents(text){if(!/^(?:\d+(?:\.\d{1,2})?|\.\d{1,2})$/.test(String(text)))throw new Error('Enter prices with at most two decimal places.');return Math.round(Number(text)*100);}
-$('opening-form').onsubmit=e=>{e.preventDefault();change(s=>{const next=applyPlan(s,openingSettings());planDirty=false;decision=null;basket={};$('plan-status').textContent='Inventory Applied';toast('The display, case, and mobile menu now use this plan.');return next;});};
+$('opening-form').onsubmit=e=>{e.preventDefault();change(s=>{const next=applyPlan(s,openingSettings());planDirty=false;decision=null;basket={};$('plan-status').textContent='Inventory applied.';toast('The display, case, and mobile menu now use this plan.');return next;});};
 $('new-food-category').innerHTML=CATEGORIES.map(c=>'<option>'+c+'</option>').join('');
 $('new-food-photo').innerHTML=photoOptions();
 $('new-food-photo').onchange=()=>{const custom=$('new-food-photo').value==='custom';$('new-food-url-label').hidden=!custom;$('new-food-url').required=custom;};
@@ -336,13 +336,13 @@ let trafficDirty=false,dealDirty=false,pricingDirty=false,formsSignature='';
 function renderDeskForms(cfg){
  const signature=JSON.stringify(cfg);if(signature===formsSignature)return;formsSignature=signature;
  for(const id of ['receive-product','deal-first','deal-second']){const prior=$(id).value;$(id).innerHTML=foods().map(p=>'<option value="'+p.id+'">'+escape(p.name)+'</option>').join('');if(foods().some(p=>p.id===prior))$(id).value=prior;}
- if(!trafficDirty){$('traffic-person').value=cfg.traffic.inPerson;$('traffic-mobile').value=cfg.traffic.mobile;$('speed').value=cfg.traffic.speed;for(const [type,r] of Object.entries(cfg.rushes)){$(type+'-time').value=clockInput(r.at);$(type+'-duration').value=r.duration;$(type+'-multiplier').value=r.multiplier;}}
+ if(!trafficDirty){$('traffic-person').value=cfg.traffic.inPerson;$('traffic-mobile').value=cfg.traffic.mobile;for(const [type,r] of Object.entries(cfg.rushes)){$(type+'-time').value=clockInput(r.at);$(type+'-duration').value=r.duration;$(type+'-multiplier').value=r.multiplier;}}
  if(!dealDirty){const d=cfg.deal;$('deal-kind').value=d.kind==='rescue'?'crash':d.kind;$('deal-title').value=d.kind==='rescue'?'Market Crash':d.title;$('deal-duration').value=d.duration;$('deal-time').value=clockInput(d.at);$('deal-first').value=d.ids[0];$('deal-second').value=d.ids[1];$('deal-category').value=d.category;dealFields();}
  if(!pricingDirty)for(const [key,value] of Object.entries(pricingFor(cfg)))$('pricing-'+key).value=['contribution','orderFee'].includes(key)?(value/100).toFixed(2):value;
  receiveDefaults();
 }
 $('traffic-form').oninput=()=>{trafficDirty=true;};
-$('traffic-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=settingsCopy();cfg.traffic={inPerson:Number($('traffic-person').value),mobile:Number($('traffic-mobile').value),speed:Number($('speed').value)};for(const type of Object.keys(RUSH_NAMES))cfg.rushes[type]={at:minuteInput($(type+'-time').value),duration:Number($(type+'-duration').value),multiplier:Number($(type+'-multiplier').value)};const next=applyPlan(s,cfg);trafficDirty=false;formsSignature='';$('traffic-status').textContent='Simulation Applied';toast('Move the Market now uses these rushes and purchase rates.');return next;});};
+$('traffic-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=settingsCopy();cfg.traffic={inPerson:Number($('traffic-person').value),mobile:Number($('traffic-mobile').value),speed:cfg.traffic.speed};for(const type of Object.keys(RUSH_NAMES))cfg.rushes[type]={at:minuteInput($(type+'-time').value),duration:Number($(type+'-duration').value),multiplier:Number($(type+'-multiplier').value)};const next=applyPlan(s,cfg);trafficDirty=false;formsSignature='';$('traffic-status').textContent='Traffic applied.';toast('Move the Market now uses these rushes and purchase rates.');return next;});};
 $('deal-form').oninput=()=>{dealDirty=true;};
 function dealFields(){const pair=$('deal-kind').value==='combo';$('pair-one-label').hidden=!pair;$('pair-two-label').hidden=!pair;$('deal-category-label').hidden=$('deal-kind').value!=='crash';}
 $('deal-kind').onchange=()=>{const k=$('deal-kind').value;$('deal-title').value={combo:'Food Bundle',crash:'Market Crash'}[k];dealFields();};
@@ -371,7 +371,7 @@ function switchLocation(id){
  const nextRegistry={...registry,activeId:id};localStorage.setItem(LOCATION_KEY,JSON.stringify(nextRegistry));registry=nextRegistry;locationId=id;KEY=stateKey(id);state=next;resetDrafts();history.replaceState({},'',locationUrl(view));render();
 }
 $('pricing-form').oninput=()=>{pricingDirty=true;};
-$('pricing-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=settingsCopy();cfg.pricing=Object.fromEntries(Object.keys(pricingFor(cfg)).map(key=>[key,['contribution','orderFee'].includes(key)?cents($('pricing-'+key).value):Number($('pricing-'+key).value)]));const next=applyPlan(s,cfg);pricingDirty=false;formsSignature='';decision=null;basket={};$('pricing-status').textContent='Pricing Applied';toast('Pricing rules updated across all displays.');return next;});};
+$('pricing-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=settingsCopy();cfg.pricing=Object.fromEntries(Object.keys(pricingFor(cfg)).map(key=>[key,['contribution','orderFee'].includes(key)?cents($('pricing-'+key).value):Number($('pricing-'+key).value)]));const next=applyPlan(s,cfg);pricingDirty=false;formsSignature='';decision=null;basket={};$('pricing-status').textContent='Pricing applied.';toast('Pricing rules updated across all displays.');return next;});};
 
 renderDeskForms(settingsFor(state));
 clock();setInterval(clock,1000);if(!read())save();showView(view,false);
