@@ -6,7 +6,7 @@ const state=offers=>({minute:800,policy:{max_count_age_minutes:30},offers});
 test('market chart retains distinct fresh batches, confirmed steps and a shared dollar scale',()=>{
  const s=state([offer('first',400,{priceEvents:[{at:420,price:400},{at:790,price:280}]}),offer('fresh',900,{priceEvents:[{at:795,price:900}]})]);
  const series=marketSeries(s);assert.deepEqual(series.map(s=>s.points.map(p=>p.value)),[[400,280],[900]]);
- const html=marketChart(s);assert.match(html,/first/);assert.match(html,/fresh/);assert.match(html,/\$2.80/);assert.match(html,/\$9.00/);assert.match(html,/View exact price changes/);
+ const html=marketChart(s);assert.match(html,/first/);assert.match(html,/fresh/);assert.match(html,/\$2.80/);assert.match(html,/\$9.00/);assert.match(html,/View Exact Price Changes/);
  assert.deepEqual(marketSeries(s,'change')[0].points.map(p=>Math.round(p.value)),[0,-30]);
 });
 test('history ends at earliest valid boundary, never includes pending or later prices',()=>{

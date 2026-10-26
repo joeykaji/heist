@@ -1,10 +1,36 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {dynamicPrice} from '../src/domain/dynamic.mjs';
-import {initialState,defaultSettings,advance,sell,validState,evaluateBatch,executeDemoDecision} from '../dist/model.mjs';
+import {initialState,defaultSettings,advance,sell,validState,evaluateBatch,executeDemoDecision,validateSettings,migrateState} from '../dist/model.mjs';
 import {chartSamples} from '../web/price-history.mjs';
 import {marketChart} from '../web/market-chart.mjs';
 const batch=()=>({label:'Test',original_cents:1000,current_cents:800,physical_units:10,reference_units:10,reserved_units:0,protected_units:0,buffer_units:0,fee_fraction:'0',sale_cost_cents:100,order_fee_cents:0,merchant_floor_cents:1,min_unit_contribution_cents:25,minutes_to_cutoff:30,fulfillment_buffer_minutes:5,count_age_minutes:0,safe_and_approved:true,checkout_supported:true,surplus_eligible:true,economics_reviewed:true});
+test('all documented review intervals work and prices hold between reviews',()=>{
+ assert.equal(defaultSettings().pricing.reviewMinutes,30);
+ for(const reviewMinutes of [5,30,60]){
+  const cfg=defaultSettings();cfg.pricing.reviewMinutes=reviewMinutes;cfg.traffic.inPerson=0;cfg.traffic.mobile=0;
+  assert.equal(validateSettings(cfg),true);
+  let s=initialState('opening',cfg);const price=s.batches[0].current_cents;
+  s=advance(s,reviewMinutes-1);assert.equal(s.batches[0].current_cents,price);
+  s=advance(s,1);assert.ok(s.batches[0].current_cents<price);assert.ok(validState(s));
+ }
+ const cfg=defaultSettings();cfg.pricing.reviewMinutes=15;assert.throws(()=>validateSettings(cfg),/5, 30, or 60/);
+});
+test('saved 15-minute plans migrate without losing inventory or confirmed prices',()=>{
+ const legacy=advance(initialState('opening'),70);legacy.settings.pricing.reviewMinutes=15;
+ const before=structuredClone(legacy),migrated=migrateState(legacy);
+ assert.ok(validState(migrated));assert.equal(migrated.settings.pricing.reviewMinutes,5);
+ const expected=structuredClone(before);expected.settings.pricing.reviewMinutes=5;
+ assert.deepEqual(migrated,expected);assert.deepEqual(legacy,before);
+});
+test('published document examples match confirmed prices and targets',()=>{
+ const common={...batch(),original_cents:1000,current_cents:1000,reference_units:20,physical_units:10,minutes_to_cutoff:60,sale_window_minutes:120,merchant_floor_cents:600};
+ const halfway=dynamicPrice(common);assert.equal(halfway.target_cents,888);assert.equal(halfway.price_cents,950);
+ const recovery=dynamicPrice({...common,physical_units:4,minutes_to_cutoff:30,current_cents:880});assert.equal(recovery.target_cents,933);assert.equal(recovery.price_cents,930);
+ const nearClosing=dynamicPrice({...common,physical_units:1,minutes_to_cutoff:6,current_cents:930});assert.equal(nearClosing.target_cents,979);assert.equal(nearClosing.price_cents,979);
+ const costs=dynamicPrice({...common,sale_cost_cents:600,order_fee_cents:20,min_unit_contribution_cents:50,fee_fraction:'0.03',merchant_floor_cents:700});assert.equal(costs.floor_cents,700);
+ const override=dynamicPrice({...common,current_cents:900,merchant_floor_cents:960});assert.equal(override.price_cents,960);
+});
 test('stock/time target falls with time and recovers after sales, bounded per adjustment',()=>{
  const b=batch(),r=dynamicPrice(b);assert.equal(r.status,'MARKDOWN');assert.equal(r.price_cents,750);
  const recovery=dynamicPrice({...b,physical_units:2});assert.equal(recovery.status,'INCREASE');assert.equal(recovery.price_cents,850);

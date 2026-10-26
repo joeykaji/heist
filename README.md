@@ -1,4 +1,4 @@
-# MarketBite
+# MarketBite: Dynamic Pricing for Campus Dining
 
 **Taste more. Waste less.**
 
@@ -6,7 +6,9 @@ MarketBite is a campus dining prototype that connects surplus inventory with tim
 
 Built by University of Rochester students for the Sustainability track of the Ain Center’s **The Heist Hackathon**, the prototype uses Connections Cafe as its demonstration setting. The concept adapts the live pricing experience of stock market bars to campus food retail.
 
-[Explore the live demo](https://marketbite-cafe-tv.alight-lemur-9585.chatgpt.site) · [Browser verification notes](docs/verification/browser-acceptance.md)
+[Explore the live demo](https://joeykaji.github.io/heist/) · [Browser verification notes](docs/verification/browser-acceptance.md)
+
+[Executive Summary (PDF)](dist/docs/marketbite-executive-summary.pdf) · [Pricing Model and Methodology (PDF)](dist/docs/marketbite-pricing-model-and-methodology.pdf)
 
 ## Features
 
@@ -15,13 +17,13 @@ Six connected views share the same browser-local inventory, pricing rules, and s
 | View | Route | Purpose |
 | --- | --- | --- |
 | Home | `/?view=home` | Project background, sustainability goals, and team. |
-| Cafe Display | `/?view=tv` | A rotating 16:9 photo menu, scrolling price ticker, and shared playback controls beneath the board. |
+| Food Display | `/?view=tv` | A rotating 16:9 photo menu, scrolling price ticker, and shared playback controls beneath the board. |
 | Exchange Display | `/?view=exchange` | A market-style board with prices, availability, batch price histories, and a scrolling ticker. |
 | Mobile Display | `/?view=mobile` | A searchable menu, category navigation, price drops, simulated checkout, and deal notifications. |
 | Sustainability | `/?view=sustainability` | Simulated food movement, surplus sales, customer savings, and sell-through, linked to the active pricing model. |
 | Cafe Desk | `/?view=inventory` | Configuration for hours, products, stock, traffic, pricing, and offers, plus The Cafe Day simulation with its 3D case, charts, and event controls. |
 
-Cafe Display rotates six foods per page; Exchange Display rotates twelve. Both rotate every 15 seconds, support category filtering, and provide a **TV Display** button for fullscreen presentation. Matching playback ribbons beneath the boards control the same cafe day as Cafe Desk, Mobile Display, and Sustainability. Restart returns to opening and pauses the simulation. Standalone display routes are `/?display=1` and `/?display=exchange`.
+Food Display rotates six foods per page; Exchange Display rotates twelve. Both rotate every 15 seconds, support category filtering, and provide a **TV Display** button for fullscreen presentation. Matching playback ribbons beneath the boards control the same cafe day as Cafe Desk, Mobile Display, and Sustainability. Restart returns to opening and pauses the simulation. Standalone display routes are `/?display=1` and `/?display=exchange`.
 
 ## Quick Start
 
@@ -74,9 +76,13 @@ target price = regular price ×
 - **Available units** exclude reservations, protected allocations, and buffer stock.
 - **Reference units** are recorded when a batch is received.
 - **Window progress** runs from receipt to cutoff and is bounded between 0 and 1.
-- Prices are reviewed every **30 simulated minutes** by default. Cafe Desk supports 15-, 30-, or 60-minute reviews.
+- Prices are reviewed every **30 simulated minutes** by default. Cafe Desk supports 5-, 30-, or 60-minute reviews.
 - Purchases affect the next review; they do not immediately change the published price.
-- Prices may decrease as time passes or increase as available stock falls, but never exceed the regular price.
+- Prices may decrease as time passes or increase as available stock falls, including near closing, but never exceed the regular price. The cap is not a promised closing discount.
+
+For a $10 item with half its starting stock available halfway through its window, the unrounded target discount is 11.25%. The $8.875 target rounds upward to **$8.88 (11.2% off)**. From a $10 current price, the default 50-cent step confirms **$9.50 (5% off)**, provided no higher floor applies. Displayed discounts always use confirmed prices.
+
+With one of 20 items available and six minutes left in a 120-minute window, the default target is **$9.79** before any higher floor. This stock response can raise prices near closing; the model does not force clearance. Existing saved 15-minute plans migrate to the supported 5-minute setting while retaining inventory and price history.
 
 ### Price and Inventory Safeguards
 
@@ -88,6 +94,8 @@ merchant-set minimum price
 regular price × (1 − maximum discount)
 (sale cost + allocated fixed fee + required contribution) / (1 − fee fraction)
 ```
+
+The floor covers the configured sale costs, fees, and required contribution; it does not establish overall cafe profitability. If the floor exceeds regular price, the offer pauses.
 
 The maximum discount is capped at 45%. Each review normally changes the price by no more than 5% of the regular price, rounded up; a higher binding floor may require a larger correction.
 

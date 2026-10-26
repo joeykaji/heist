@@ -22,7 +22,7 @@ test('closing rush is in the full planned graph and increases actual orders',()=
  assert.ok(trafficPlan(s).some(p=>p.at===895&&p.value===0));
 });
 test('pricing intervals, caps, fees and floors reach every batch and preserve replay',()=>{
- const cfg=defaultSettings();cfg.traffic={inPerson:0,mobile:0,speed:1};cfg.pricing={reviewMinutes:15,maxDiscount:20,maxStep:2,contribution:50,feePercent:10,orderFee:10};
+ const cfg=defaultSettings();cfg.traffic={inPerson:0,mobile:0,speed:1};cfg.pricing={reviewMinutes:5,maxDiscount:20,maxStep:2,contribution:50,feePercent:10,orderFee:10};
  const opening=initialState('opening',cfg),later=stepSimulation(opening,480);
  assert.ok(validState(later));const b=later.batches.find(b=>b.productId==='buffalo');
  assert.ok(b.priceEvents.some(p=>p.at===435));

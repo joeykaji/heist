@@ -14,3 +14,4 @@ dist/domain/*
 !dist/assets/
 dist/assets/*
 !dist/assets/rochester-autumn.jpg
+!dist/docs/

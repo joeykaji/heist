@@ -130,7 +130,7 @@ function renderDecision(){
  const b=state.batches.find(b=>b.id===$('decision-batch').value);if(!b)return;
  for(const [input,k] of [['reserved','reserved_units'],['protected','protected_units'],['buffer','buffer_units']])if(document.activeElement!==$(input))$(input).value=b[k];
  if(document.activeElement!==$('physical-count'))$('physical-count').value=b.physical_units;
- const pricing=pricingFor(state.settings);$('scenario-table').textContent='Prices follow available stock and time before closing. Reviewed every '+pricing.reviewMinutes+' minutes, with a '+pricing.maxStep+'% step and a '+pricing.maxDiscount+'% maximum discount.';
+ const pricing=pricingFor(state.settings);$('scenario-table').textContent='Prices follow available stock and time before closing. Reviewed every '+pricing.reviewMinutes+' minutes, with a '+pricing.maxStep+'% ordinary step (rounded up to cents; a higher floor takes priority) and a '+pricing.maxDiscount+'% maximum discount.';
  $('publish-price').hidden=true;$('fail-price').hidden=true;
  if(!decision){$('decision-result').innerHTML='<p>Physical '+b.physical_units+' − reserved '+b.reserved_units+' − protected '+b.protected_units+' − buffer '+b.buffer_units+' = '+rawAvailable(b)+' offer units. '+(b.window_committed?'Dynamic pricing is active.':'Prices update with time and purchases.')+'</p>';return;}
  const d=decision;

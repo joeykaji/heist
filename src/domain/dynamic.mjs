@@ -30,5 +30,5 @@ export function dynamicPrice(batch, policy = {}) {
  const step=Math.max(1,Math.ceil(batch.original_cents*adjustment));
  const price=Math.max(floor,Math.min(batch.original_cents,Math.max(batch.current_cents-step,Math.min(batch.current_cents+step,target))));
  const status=price<batch.current_cents?'MARKDOWN':price>batch.current_cents?'INCREASE':'HOLD';
- return {...result,status,price_cents:price,evaluation_completed:true,target_cents:target,stock_pressure:pressure,window_progress:progress,reason:`${available} of ${reference} reference units available; ${Math.round(progress*100)}% through the pricing window. Target ${(target/100).toFixed(2)}; adjustments limited to ${Math.round(adjustment*100)}% of regular price.`,expected_baseline_leftovers:0};
+ return {...result,status,price_cents:price,evaluation_completed:true,target_cents:target,stock_pressure:pressure,window_progress:progress,reason:`${available} of ${reference} reference units available; ${Math.round(progress*100)}% through the pricing window. Target ${(target/100).toFixed(2)}; ordinary step ${(step/100).toFixed(2)} (${Math.round(adjustment*100)}% of regular price, rounded up); a higher floor takes priority.`,expected_baseline_leftovers:0};
 }

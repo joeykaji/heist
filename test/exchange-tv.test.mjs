@@ -23,7 +23,7 @@ test('exchange category pages only include enabled matching foods',()=>{
 test('TV sparkline disappears after withdrawal',()=>{
  const state=initialState();state.minute=800;
  const batch={...state.batches[0],original_cents:400,observedAt:790,terminalAt:795,priceEvents:[{at:780,price:400},{at:796,price:200}]};
- assert.equal(sparkline(batch,state),'');assert.match(sparkline(null,state),/No active batch/);
+ assert.equal(sparkline(batch,state),'');assert.match(sparkline(null,state),/No Active Batch/);
 });
 
 test('available batches with no withdrawal time retain their graphs',()=>{

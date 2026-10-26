@@ -233,7 +233,7 @@ export function validFoodImage(image){
 export function validateSettings(c){
  if(!c||!c.menu||!c.rushes||!c.deal)throw new Error('Cafe settings are incomplete.');
  if(c.location)validateLocation(c.location);
- const p=pricingFor(c);if(![15,30,60].includes(p.reviewMinutes)||!Number.isInteger(p.maxDiscount)||p.maxDiscount<0||p.maxDiscount>45||!Number.isInteger(p.maxStep)||p.maxStep<1||p.maxStep>5||!Number.isInteger(p.contribution)||p.contribution<0||p.contribution>10000||!Number.isFinite(p.feePercent)||p.feePercent<0||p.feePercent>50||!Number.isInteger(p.orderFee)||p.orderFee<0||p.orderFee>10000)throw new Error('Pricing needs a 15, 30, or 60 minute review, 0–45% maximum discount, 1–5% step, and nonnegative costs.');
+ const p=pricingFor(c);if(![5,30,60].includes(p.reviewMinutes)||!Number.isInteger(p.maxDiscount)||p.maxDiscount<0||p.maxDiscount>45||!Number.isInteger(p.maxStep)||p.maxStep<1||p.maxStep>5||!Number.isInteger(p.contribution)||p.contribution<0||p.contribution>10000||!Number.isFinite(p.feePercent)||p.feePercent<0||p.feePercent>50||!Number.isInteger(p.orderFee)||p.orderFee<0||p.orderFee>10000)throw new Error('Pricing needs a 5, 30, or 60 minute review, 0–45% maximum discount, 1–5% step, and nonnegative costs.');
  const h=c.hours;if(!h||!Number.isInteger(h.open)||!Number.isInteger(h.close)||h.open<0||h.close>1439||h.close-h.open<120)throw new Error('Choose same-day hours at least two hours apart.');
  if(!Array.isArray(c.foods)||c.foods.length<2||c.foods.length>80||new Set(c.foods.map(p=>p.id)).size!==c.foods.length||new Set(c.foods.map(p=>p.symbol)).size!==c.foods.length)throw new Error('Use a unique ID and ticker for each food (2–80 foods).');
  for(const p of c.foods){
@@ -273,6 +273,7 @@ export function endDeal(source){const s=copy(source);s.promotion=null;event(s,'O
 
 // Preserve saved plans and price histories; upgrade old default traffic without silently losing owner edits.
 export function migrateState(legacy){
+ if(legacy?.settings?.pricing?.reviewMinutes===15){legacy=copy(legacy);legacy.settings.pricing.reviewMinutes=5;}
  if(validState(legacy)){const s=copy(legacy);if(!s.settings.location){s.settings.location={...DEFAULT_LOCATION};s.settings.pricing=pricingFor();const r=s.settings.rushes.closing;if(r.at===840&&r.duration===55&&r.multiplier===.8)r.multiplier=1.5;}for(const b of s.batches)b.reference_units??=Math.max(1,s.settings.menu[b.productId]?.stock??b.physical_units);return s;}
  if(!legacy||![3,4,5].includes(legacy.version))return null;
  if(legacy.version===5){
