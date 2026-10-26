@@ -131,7 +131,7 @@ button,.primary-button,.secondary-button{display:inline-flex;align-items:center;
 .goals-section .bite-journey{width:100%;max-width:none;align-self:stretch;border:0;border-left:1px solid var(--line);border-radius:0;box-shadow:none;padding:4px 0 0 32px;display:flex;flex-direction:column}.journey-heading h2{font-family:inherit;font-size:26px}.journey-scene{height:320px;flex:1;min-height:320px}.journey-food{width:min(100%,370px)}.journey-food>img{height:168px}.journey-food span{font-size:12px}.journey-food strong{font-size:25px}.journey-stage,.journey-steps li{animation-duration:12s}.journey-stage:nth-child(2),.journey-steps li:nth-child(2){animation-delay:-8s}.journey-stage:nth-child(3),.journey-steps li:nth-child(3){animation-delay:-4s}.journey-steps{margin-top:8px}
 .team-list li{display:flex;align-items:center;gap:18px;padding-block:18px}.team-list .team-photo{display:block;width:80px;height:80px;flex:0 0 80px;object-fit:cover;object-position:50% 34%;border-radius:8px}.team-list .team-person{min-width:0}.team-list .team-meta{font-size:14px;line-height:1.4}.team-list .team-link{font-size:15px}.team-photo[src*="joey"]{object-position:center}
 .restaurant-brand{width:230px;max-width:100%;margin:0 0 22px;text-align:center}.restaurant-brand .restaurant-mark{width:100%;margin:0 0 6px}.restaurant-slogan{display:block;font-size:13px;letter-spacing:0;line-height:1.4;color:var(--muted)}
-.ticker-item{width:auto;min-width:0;flex:none;display:flex;align-items:center;gap:22px;padding:16px 28px;border-right:1px solid #ffffff26}.ticker-symbol{font-size:24px;letter-spacing:1px}.ticker-price{font-size:28px;line-height:1.1}.ticker-drop{font-size:19px;white-space:nowrap;min-width:40px}.ticker-track{animation-duration:90s}
+.ticker-item{width:auto;min-width:0;flex:none;display:flex;align-items:center;gap:22px;padding:16px 28px;border-right:1px solid #ffffff52}.ticker-symbol{font-size:24px;letter-spacing:1px}.ticker-price{font-size:28px;line-height:1.1}.ticker-drop{font-size:19px;white-space:nowrap;min-width:40px}.ticker-track{animation-duration:90s}
 .pricing-form{padding-block:12px}.location-note{font-size:13px;color:var(--muted);line-height:1.6}.desk-section input,.desk-section select{min-width:0}.desk-section .desk-grid label{min-width:0}
 @media(max-width:1000px){.workspace-bar{height:auto;min-height:68px;flex-wrap:wrap;padding-block:12px;gap:12px}.workspace-bar nav{flex-wrap:wrap}.workspace-bar nav a{font-size:12px;padding:9px 10px}.goals-section{gap:20px;padding:24px}.goals-section .bite-journey{padding-left:20px}}
 @media(max-width:760px){:root{--page-gutter:18px}.workspace-bar{align-items:center}.workspace-bar nav{margin-left:0;justify-content:flex-start;gap:2px}.workspace-bar nav a{font-size:11px;padding:9px 8px}.home-hero{padding-block:24px}.home-wordmark{width:min(360px,95%)}.home-actions{flex-wrap:wrap}.goals-section{grid-template-columns:1fr;padding:20px;gap:26px}.goals-section .bite-journey{border-left:0;border-top:1px solid var(--line);padding:24px 0 0}.campus-photo{width:100%}.team-list li{gap:12px;flex-wrap:wrap}.team-list .team-photo{width:64px;height:64px;flex-basis:64px}.team-list .team-link{font-size:14px}.team-list .team-meta{font-size:12px}}
@@ -140,8 +140,8 @@ button,.primary-button,.secondary-button{display:inline-flex;align-items:center;
 /* One hierarchy across the home page and both menu boards. */
 .workspace-bar .leaf-wordmark-nav,.home-footer .leaf-wordmark-nav{width:110px}
 .workspace-bar{height:62px}.home-footer{padding-block:20px}
-.home-hero{padding-block:30px 36px}.home-wordmark{width:min(620px,90%);margin-bottom:12px}
-.home-story h1{font-size:clamp(27px,3vw,38px);letter-spacing:-1px;margin:10px 0 18px}.home-story h1 em,.slogan span{color:var(--gold)}
+.home-hero{padding-block:20px 22px}.home-wordmark{width:min(560px,90%);margin-bottom:12px}
+.home-story h1{font-size:clamp(27px,3vw,38px);letter-spacing:-1px;margin:10px 0 8px}.home-story h1 em,.slogan span{color:var(--gold)}
 .home-story .eyebrow{display:block}.home-story>p:not(.home-deck){margin-bottom:0}
 .mission-section>div>p:first-child{margin-top:0}.campus-photo{margin-top:26px}
 .goals-copy{justify-content:flex-start}.goals-copy .section-title,.journey-heading{min-height:88px;margin:0}
@@ -153,7 +153,7 @@ button,.primary-button,.secondary-button{display:inline-flex;align-items:center;
 .journey-scene{height:300px;min-height:300px}.journey-footer{justify-content:flex-end}
 .team-section{align-items:stretch;gap:48px}.team-section .section-title{display:flex;flex-direction:column}.team-section .section-title>p{line-height:1.75;margin-bottom:18px}.team-section .section-title>p:last-child{margin-bottom:0}
 .team-list{display:grid;grid-template-rows:repeat(5,minmax(96px,1fr))}.team-list li{padding-block:16px}.team-list li:first-child{padding-top:0}.team-list li:last-child{border-bottom:0;padding-bottom:0}.team-list .team-link{flex:0 0 auto;margin-left:auto}
-.brand-image{width:365px;height:auto;aspect-ratio:2121/439}.brand-image img{width:135.785%;left:-17.916%;top:-119.818%}.brand-lockup{gap:3px}.campus-name{font:500 15px/1.4 'DM Sans',Arial,sans-serif;letter-spacing:1.8px}
+.brand-image{width:365px;height:auto;aspect-ratio:2121/439}.brand-image img{width:135.785%;left:-17.916%;top:-119.818%}.brand-lockup{gap:10px}.campus-name{font:500 15px/1.4 'DM Sans',Arial,sans-serif;letter-spacing:1.8px}
 .tv-footnote{justify-content:flex-end;text-align:right}
 #view-simulation{padding-top:24px}#view-simulation::before{content:'';display:block;border-top:1px solid var(--line);margin-bottom:30px}
 .opening-table tbody th,.opening-table .food-name-input,.food-meta-fields input,.opening-table [data-photo-url]{text-align:left}
