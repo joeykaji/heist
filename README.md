@@ -15,13 +15,13 @@ Six connected views share the same browser-local inventory, pricing rules, and s
 | View | Route | Purpose |
 | --- | --- | --- |
 | Home | `/?view=home` | Project background, sustainability goals, and team. |
-| Cafe Display | `/?view=tv` | A rotating 16:9 photo menu, scrolling price ticker, adjustable 3D display case, and simulation controls. |
+| Cafe Display | `/?view=tv` | A rotating 16:9 photo menu, scrolling price ticker, and shared playback controls beneath the board. |
 | Exchange Display | `/?view=exchange` | A market-style board with prices, availability, batch price histories, and a scrolling ticker. |
 | Mobile Display | `/?view=mobile` | A searchable menu, category navigation, price drops, simulated checkout, and deal notifications. |
 | Sustainability | `/?view=sustainability` | Simulated food movement, surplus sales, customer savings, and sell-through, linked to the active pricing model. |
-| Cafe Desk | `/?view=inventory` | Configuration for hours, products, stock, traffic, pricing, and offers. |
+| Cafe Desk | `/?view=inventory` | Configuration for hours, products, stock, traffic, pricing, and offers, plus The Cafe Day simulation with its 3D case, charts, and event controls. |
 
-Cafe Display rotates six foods per page; Exchange Display rotates twelve. Both rotate every 15 seconds, support category filtering, and provide a **TV Display** button for fullscreen presentation. Standalone display routes are `/?display=1` and `/?display=exchange`.
+Cafe Display rotates six foods per page; Exchange Display rotates twelve. Both rotate every 15 seconds, support category filtering, and provide a **TV Display** button for fullscreen presentation. Matching playback ribbons beneath the boards control the same cafe day as Cafe Desk, Mobile Display, and Sustainability. Restart returns to opening and pauses the simulation. Standalone display routes are `/?display=1` and `/?display=exchange`.
 
 ## Quick Start
 

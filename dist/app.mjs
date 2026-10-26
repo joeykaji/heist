@@ -29,11 +29,11 @@ async function change(fn,{stop=true}={}){
  if(navigator.locks)await navigator.locks.request(KEY,run);else run();
 }
 function showView(next,push=true){
- view=next==='simulation'?'tv':['home','tv','exchange','mobile','sustainability','inventory'].includes(next)?next:'home';
- for(const id of ['home','tv','exchange','mobile','simulation','sustainability','inventory'])$('view-'+id).hidden=id==='simulation'?view!=='tv'||displayOnly:id!==view;
+ view=next==='simulation'?'inventory':['home','tv','exchange','mobile','sustainability','inventory'].includes(next)?next:'home';
+ for(const id of ['home','tv','exchange','mobile','sustainability','inventory'])$('view-'+id).hidden=id!==view;
  document.querySelectorAll('.workspace-bar [data-view]').forEach(a=>{if(a.dataset.view===view)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current');});
  if(push&&!displayOnly){history.pushState({},'',locationUrl(view));window.scrollTo(0,0);}
- if(view==='tv'&&!displayOnly){if(!caseScene)caseScene=createCase($('case-stage'));caseScene?.setState(state);caseScene?.resize();}
+ if(view==='inventory'){if(!caseScene)caseScene=createCase($('case-stage'));caseScene?.setState(state);caseScene?.resize();}
  if(view==='tv')resize();render();
 }
 function revealSection(id){const target=$(id);if(!target)return;for(let node=target;node;node=node.parentElement)if(node.tagName==='DETAILS')node.open=true;target.scrollIntoView({behavior:'smooth',block:'start'});}
@@ -142,11 +142,12 @@ $('fail-price').onclick=()=>{const d=decision;if(d)change(s=>executeDemoDecision
 $('save-allocations').onclick=()=>change(s=>setAllocations(s,$('decision-batch').value,Number($('reserved').value),Number($('protected').value),Number($('buffer').value))).then(()=>{decision=null;renderDecision();});
 
 function updatePlayback(){
- for(const id of ['pause-day','mobile-pause','exchange-play','launch-market','impact-play']){$(id).textContent=playing?'Pause':'Play';$(id).disabled=!playing&&state.minute>=hoursFor(state).close;}
+ for(const id of ['pause-day','mobile-pause','tv-play','exchange-play','launch-market','impact-play']){$(id).textContent=playing?'Pause':'Play';$(id).disabled=!playing&&state.minute>=hoursFor(state).close;}
  if(!playing&&marketSelectionPending&&$('market-event').selectedOptions[0]?.disabled)$('launch-market').disabled=true;
- for(const id of ['run-day','mobile-replay','exchange-replay'])$(id).textContent='Restart';
+ for(const id of ['run-day','mobile-replay','tv-replay','exchange-replay'])$(id).textContent='Restart';
  $('exchange-playback-status').textContent=playing?'Playing':state.minute>=hoursFor(state).close?'Day Complete':'Paused';
  $('day-playback-status').textContent=$('exchange-playback-status').textContent;
+ $('tv-playback-status').textContent=$('exchange-playback-status').textContent;
  $('impact-status').textContent=$('exchange-playback-status').textContent;
 }
 function pause(){clearInterval(timer);timer=null;playing=false;updatePlayback();}
@@ -162,6 +163,11 @@ $('exchange-forward').onclick=()=>change(s=>stepSimulation(s,5));
  $('day-speed').onchange=$('exchange-speed').onchange;
 $('day-slider').oninput=e=>{const minute=Number(e.target.value);basket={};decision=null;change(s=>snapshotAt(minute,settingsFor(s)));};
 $('exchange-slider').oninput=$('day-slider').oninput;
+ $('tv-play').onclick=$('pause-day').onclick;
+ $('tv-replay').onclick=$('run-day').onclick;
+ $('tv-forward').onclick=$('exchange-forward').onclick;
+ $('tv-speed').onchange=$('exchange-speed').onchange;
+ $('tv-slider').oninput=$('day-slider').oninput;
 $('impact-slider').oninput=$('day-slider').oninput;
 $('impact-play').onclick=$('pause-day').onclick;
 $('impact-restart').onclick=$('run-day').onclick;
@@ -234,6 +240,7 @@ function render(previous){
  renderLocation();exchange.update(state);renderHours();renderSustainability();renderDesk();renderMarket();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
  $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;
  $('exchange-slider').value=state.minute;$('exchange-slider').setAttribute('aria-valuetext',simTime(state.minute));$('exchange-playback-time').textContent=simTime(state.minute);$('exchange-forward').disabled=state.minute>=hoursFor(state).close;$('exchange-speed').value=settingsFor(state).traffic.speed;
+ $('tv-slider').value=state.minute;$('tv-slider').setAttribute('aria-valuetext',simTime(state.minute));$('tv-playback-time').textContent=simTime(state.minute);$('tv-forward').disabled=$('exchange-forward').disabled;$('tv-speed').value=$('exchange-speed').value;
  $('day-forward').disabled=$('exchange-forward').disabled;$('day-speed').value=$('exchange-speed').value;
  $('impact-forward').disabled=$('exchange-forward').disabled;$('impact-speed').value=$('exchange-speed').value;
  updatePlayback();caseScene?.setState(state);
@@ -256,9 +263,10 @@ const clockInput=m=>String(Math.floor(m/60)).padStart(2,'0')+':'+String(m%60).pa
 const minuteInput=value=>{if(!/^\d{2}:\d{2}$/.test(value))throw new Error('Choose opening and closing times.');const [h,m]=value.split(':').map(Number);return h*60+m;};
 function renderHours(){
  $('exchange-open').textContent=simTime(hoursFor(state).open);$('exchange-close').textContent=simTime(hoursFor(state).close);
+ $('tv-open').textContent=simTime(hoursFor(state).open);$('tv-close').textContent=simTime(hoursFor(state).close);
  const {open,close}=hoursFor(state),signature=open+':'+close;
  if(signature!==hoursSignature&&!hoursDirty){$('hours-open').value=clockInput(open);$('hours-close').value=clockInput(close);hoursSignature=signature;}
- for(const id of ['day-slider','mobile-day-slider','exchange-slider','impact-slider']){$(id).min=open;$(id).max=close;}
+ for(const id of ['day-slider','mobile-day-slider','tv-slider','exchange-slider','impact-slider']){$(id).min=open;$(id).max=close;}
  $('timeline-labels').innerHTML='<span>'+simTime(open)+'</span><span>'+simTime(close)+'</span>';
  $('mobile-hours').textContent='Cafe hours · '+simTime(open)+'–'+simTime(close);
 }
