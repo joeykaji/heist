@@ -24,7 +24,6 @@ export function exchangeRows(state,page=0){
 }
 export function createExchange(){
  let current=null,page=0,remaining=15,rotating=!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
- const rotationButton=document.getElementById('exchange-rotate');rotationButton.textContent=rotating?'Pause rotation':'Resume rotation';rotationButton.setAttribute('aria-pressed',String(!rotating));
  const pageCount=()=>Math.max(1,Math.ceil(catalogFor(current).filter(p=>current.settings.menu[p.id].enabled).length/12));
  const board=document.getElementById('exchange-board'),body=document.getElementById('exchange-rows');
  function update(state){current=state;page=Math.min(page,pageCount()-1);body.innerHTML=exchangeRows(state,page);
@@ -32,10 +31,6 @@ export function createExchange(){
  document.getElementById('exchange-page').textContent='PAGE '+(page+1)+' / '+pageCount();
  }
  function turn(delta){page=(page+delta+pageCount())%pageCount();remaining=15;if(current)update(current);}
- document.getElementById('exchange-prev').onclick=()=>turn(-1);
- document.getElementById('exchange-next').onclick=()=>turn(1);
- document.getElementById('exchange-rotate').onclick=e=>{rotating=!rotating;e.target.textContent=rotating?'Pause rotation':'Resume rotation';e.target.setAttribute('aria-pressed',String(!rotating));if(current)update(current);};
- document.getElementById('exchange-fullscreen').onclick=async e=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.getElementById('exchange-stage').requestFullscreen();}catch{e.target.textContent='Use Browser Fullscreen';}};
  setInterval(()=>{if(!current||document.hidden||document.getElementById('view-exchange').hidden)return;if(rotating&&!--remaining)turn(1);},1000);
  return {update};
 }

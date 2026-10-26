@@ -42,6 +42,7 @@ window.addEventListener('popstate',()=>{const p=new URLSearchParams(location.sea
 if(displayOnly){document.body.classList.add(view==='exchange'?'exchange-only':'tv-only');$('tv-tools').hidden=false;if(view==='exchange')$('tv-tools').querySelector('a').href='?view=exchange';}
 function resize(){const r=$('tv-stage').getBoundingClientRect();if(!r.width)return;const scale=Math.min(r.width/1920,r.height/1080);$('tv').style.transform=document.fullscreenElement===$('tv-stage')?'translate(-50%,-50%) scale('+scale+')':'scale('+scale+')';}
 new ResizeObserver(resize).observe($('tv-stage'));window.addEventListener('resize',resize);document.addEventListener('fullscreenchange',resize);
+for(const [button,stage,display] of [['tv-fullscreen','tv-stage','1'],['exchange-fullscreen','exchange-stage','exchange']])$(button).onclick=async()=>{try{await $(stage).requestFullscreen();}catch{window.open(locationUrl(display,true),'_blank','noopener');}};
 for(const id of ['tv-category','inventory-category'])for(const c of CATEGORIES){const o=document.createElement('option');o.value=c;o.textContent=c;$(id).append(o);}
 function tvProducts(){const menu=onMenu();return tvCategory==='all'?menu:menu.filter(p=>p.category===tvCategory);}
 function renderTV(previous){
@@ -228,7 +229,7 @@ function render(previous){
  renderLocation();exchange.update(state);renderHours();renderSustainability();renderDesk();renderMarket();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
  $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;
  $('exchange-slider').value=state.minute;$('exchange-slider').setAttribute('aria-valuetext',simTime(state.minute));$('exchange-playback-time').textContent=simTime(state.minute);$('exchange-forward').disabled=state.minute>=hoursFor(state).close;$('exchange-speed').value=settingsFor(state).traffic.speed;
- $('total-stock').textContent=state.batches.reduce((n,b)=>n+offerAvailable(state,b),0);$('total-sold').textContent=state.sold;$('in-person-orders').textContent=state.orders.inPerson;$('mobile-orders').textContent=state.orders.mobile;updatePlayback();caseScene?.setState(state);
+ updatePlayback();caseScene?.setState(state);
 }
 function syncLatest(){
  const next=read();if(!next||(next.revision===state.revision&&next.updatedAt===state.updatedAt))return;
@@ -258,10 +259,10 @@ function renderSustainability(){
  const r=sustainabilityReport(state),{open,close}=hoursFor(state);
  $('impact-time').textContent=simTime(state.minute);$('impact-slider').value=state.minute;$('impact-slider').setAttribute('aria-valuetext',simTime(state.minute));$('impact-open').textContent=simTime(open);$('impact-close').textContent=simTime(close);
  $('sustainability-counts').innerHTML=[
-  ['Discounted Foods Sold',state.surplusSold,'Purchased below regular price'],
-  [r.savingsComplete?'Customer Savings':'Tracked Savings',money(r.savings),'Based on prices paid at purchase'],
-  ['Food Sold',pct(r.sellThrough)+'%',state.sold+' of '+r.accounted+' accounted items'],
-  [r.closed?'Unsold at Close':'Still in the Case',r.closed?state.retained+state.transferred+state.discarded:r.remaining,r.closed?'See destinations below':'Includes reserved & protected stock']
+  ['Surplus Food Sold',state.surplusSold,'Purchased at a reduced price'],
+  [r.closed?'Food Left at Close':'Food Still Unsold',r.closed?state.retained+state.transferred+state.discarded:r.remaining,r.closed?'See where it goes below':'Includes reserved & protected stock'],
+  ['Share of Food Sold',pct(r.sellThrough)+'%',state.sold+' of '+r.accounted+' items tracked'],
+  [r.savingsComplete?'Customer Savings':'Tracked Savings',money(r.savings),'An incentive to choose surplus']
  ].map(([label,value,note])=>'<article><span>'+label+'</span><strong>'+value+'</strong><p>'+note+'</p></article>').join('');
  $('impact-total').textContent=r.accounted+' Items';
  $('impact-flow-bar').innerHTML=r.outcomes.filter(o=>o.count).map(o=>'<span class="outcome-'+o.key+'" style="flex-grow:'+o.count+'" title="'+o.label+': '+o.count+'"></span>').join('');
