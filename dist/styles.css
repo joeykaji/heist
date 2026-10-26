@@ -192,3 +192,5 @@ button,.primary-button,.secondary-button{display:inline-flex;align-items:center;
 .desk-intro p{max-width:none}.control-heading .simulation-guide{max-width:none;margin:10px 0 0;color:var(--muted);font-size:15px;line-height:1.65}
 #deal-desk>.deal-preview{margin:0 22px 22px}#shelf-desk{margin-top:24px}
 @media(max-width:600px){.traffic-form>.desk-grid{grid-template-columns:1fr}.control-heading .simulation-guide{font-size:14px}}
+
+.pricing-explanation>p{margin:16px 22px;font-size:14px;line-height:1.65}
