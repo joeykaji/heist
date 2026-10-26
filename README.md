@@ -149,6 +149,8 @@ The server also supports rejected publications, uncertain checkout outcomes, and
 
 GitHub Pages deployment is defined in [`.github/workflows/pages.yml`](.github/workflows/pages.yml). A repository administrator must first open **Settings → Pages** and select **GitHub Actions** as the source. Then run **Deploy MarketBite to GitHub Pages** from the Actions tab, or push a commit to `master`.
 
+If **Configure GitHub Pages** fails with `HttpError: Not Found`, check [the repository's Pages settings](https://github.com/joeykaji/heist/settings/pages) and complete that setup before rerunning the workflow. The workflow token cannot enable Pages automatically; `enablement: true` requires a separate token with additional permissions.
+
 After setup, each push to `master` builds and publishes `dist/` automatically. The public address will be **https://joeykaji.github.io/heist/**. View links use the same prefix, for example `https://joeykaji.github.io/heist/?view=tv`. The GitHub Pages deployment hosts the browser-local prototype only; each visitor has their own simulated cafe day.
 
 For a static deployment, run `npm run build` and serve `dist/`. The existing Sites configuration is stored in `.openai/hosting.json`.
