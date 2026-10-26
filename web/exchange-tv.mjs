@@ -1,5 +1,5 @@
 import {chartSamples,hourlyPoints} from './price-history.mjs';
-import {catalogFor,productView,money,simTime,offerAvailable} from './model.mjs';
+import {catalogFor,CATEGORIES,productView,money,simTime,offerAvailable} from './model.mjs';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 export function tickerMarkup(state){
  return catalogFor(state).filter(p=>state.settings.menu[p.id].enabled).map(food=>{
@@ -15,22 +15,32 @@ export function sparkline(batch,state){
  let path='';for(let i=0;i<points.length;i++){const p=points[i];path+=(i?' L':'M')+x(p.at)+' '+y(p.price)+(points[i+1]?'':' H'+x(end));}
  return '<svg viewBox="0 0 180 64" role="img" aria-label="'+esc(batch.label)+' confirmed price history"><path d="M6 10H174 M6 32H174 M6 54H174" class="exchange-grid"/><path d="'+path+'" class="exchange-line"/>'+hourlyPoints(batch.priceEvents.filter(p=>p.at<=end),end).map(p=>'<circle cx="'+x(p.at)+'" cy="'+y(p.price)+'" r="3"><title>'+money(p.price)+' at '+simTime(p.at)+'</title></circle>').join('')+'</svg>';
 }
-export function exchangeRows(state,page=0){
- const products=catalogFor(state).filter(p=>state.settings.menu[p.id].enabled).slice(page*12,page*12+12);
+const exchangeProducts=(state,category)=>catalogFor(state).filter(p=>state.settings.menu[p.id].enabled&&(category==='all'||p.category===category));
+export function exchangeRows(state,page=0,category='all'){
+ const products=exchangeProducts(state,category).slice(page*12,page*12+12);
  return [products.slice(0,6),products.slice(6,12)].map(column=>'<div class="exchange-column"><div class="exchange-labels"><span>ITEM / AVAILABLE</span><span>PRICE / WAS</span><span>HISTORY</span></div>'+column.map(product=>{
  const p=productView(state,product.id),batch=state.batches.find(b=>b.id===p.batchId)??state.batches.filter(b=>b.productId===product.id).at(-1),available=p.quantity>0;
  return '<article class="exchange-row"><div class="exchange-item"><strong>'+esc(p.name)+'</strong><small>'+esc(p.symbol)+' · '+(available?p.quantity+' available':'Unavailable')+'</small></div><div class="exchange-price"><strong>'+(available?money(p.price):'—')+'</strong><small class="'+(available&&p.saving?'exchange-saving':'')+'">'+(available?(p.saving?'<s>Was '+money(p.base)+'</s>':'Regular price'):(batch?'Last '+money(batch.current_cents):'No offer'))+'</small></div><div class="exchange-spark">'+sparkline(batch,state)+'</div></article>';
  }).join('')+'</div>').join('');
 }
 export function createExchange(){
- let current=null,page=0,remaining=15,rotating=!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
- const pageCount=()=>Math.max(1,Math.ceil(catalogFor(current).filter(p=>current.settings.menu[p.id].enabled).length/12));
- const board=document.getElementById('exchange-board'),body=document.getElementById('exchange-rows');
- function update(state){current=state;page=Math.min(page,pageCount()-1);body.innerHTML=exchangeRows(state,page);
+ let current=null,page=0,category='all',remaining=15,rotating=!window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+ const pageCount=()=>Math.max(1,Math.ceil(exchangeProducts(current,category).length/12));
+ const get=id=>document.getElementById(id),body=get('exchange-rows');
+ for(const name of CATEGORIES){const option=document.createElement('option');option.value=name;option.textContent=name;get('exchange-category').append(option);}
+ function rotationLabel(){get('exchange-rotate').textContent=rotating?'Pause Rotation':'Resume Rotation';get('exchange-rotate').setAttribute('aria-pressed',String(!rotating));}
+ rotationLabel();
+ function update(state){current=state;page=Math.min(page,pageCount()-1);body.innerHTML=exchangeRows(state,page,category);
  document.getElementById('exchange-time').textContent=simTime(state.minute)+' ET';
  document.getElementById('exchange-page').textContent='PAGE '+(page+1)+' / '+pageCount();
+ get('exchange-page-number').textContent=(page+1)+' / '+pageCount();
+ get('exchange-prev').disabled=get('exchange-next').disabled=pageCount()<2;
  }
  function turn(delta){page=(page+delta+pageCount())%pageCount();remaining=15;if(current)update(current);}
+ get('exchange-category').onchange=e=>{category=e.target.value;page=0;remaining=15;if(current)update(current);};
+ get('exchange-prev').onclick=()=>turn(-1);
+ get('exchange-next').onclick=()=>turn(1);
+ get('exchange-rotate').onclick=()=>{rotating=!rotating;rotationLabel();};
  setInterval(()=>{if(!current||document.hidden||document.getElementById('view-exchange').hidden)return;if(rotating&&!--remaining)turn(1);},1000);
  return {update};
 }

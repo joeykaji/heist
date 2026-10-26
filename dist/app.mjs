@@ -146,6 +146,7 @@ function updatePlayback(){
  if(!playing&&marketSelectionPending&&$('market-event').selectedOptions[0]?.disabled)$('launch-market').disabled=true;
  for(const id of ['run-day','mobile-replay','exchange-replay'])$(id).textContent='Restart';
  $('exchange-playback-status').textContent=playing?'Playing':state.minute>=hoursFor(state).close?'Day Complete':'Paused';
+ $('day-playback-status').textContent=$('exchange-playback-status').textContent;
  $('impact-status').textContent=$('exchange-playback-status').textContent;
 }
 function pause(){clearInterval(timer);timer=null;playing=false;updatePlayback();}
@@ -157,11 +158,15 @@ $('exchange-speed').onchange=async e=>{await change(s=>{const cfg=structuredClon
 $('exchange-play').onclick=$('pause-day').onclick;
 $('exchange-replay').onclick=$('run-day').onclick;
 $('exchange-forward').onclick=()=>change(s=>stepSimulation(s,5));
+ $('day-forward').onclick=$('exchange-forward').onclick;
+ $('day-speed').onchange=$('exchange-speed').onchange;
 $('day-slider').oninput=e=>{const minute=Number(e.target.value);basket={};decision=null;change(s=>snapshotAt(minute,settingsFor(s)));};
 $('exchange-slider').oninput=$('day-slider').oninput;
 $('impact-slider').oninput=$('day-slider').oninput;
 $('impact-play').onclick=$('pause-day').onclick;
 $('impact-restart').onclick=$('run-day').onclick;
+ $('impact-forward').onclick=$('exchange-forward').onclick;
+ $('impact-speed').onchange=$('exchange-speed').onchange;
 function renderMarket(){
  const cfg=settingsFor(state),{open,close}=hoursFor(state),choice=$('market-event').value;
  for(const option of $('market-event').options){const r=cfg.rushes[option.value];if(r){option.textContent=RUSH_NAMES[option.value]+' · '+simTime(r.at);option.disabled=r.at<open||r.at+r.duration>close-5;}else option.textContent=({crash:'Market Crash',combo:cfg.deal.kind==='combo'?cfg.deal.title:'Food Bundle',rescue:'Closing Rush'})[option.value];}
@@ -229,6 +234,8 @@ function render(previous){
  renderLocation();exchange.update(state);renderHours();renderSustainability();renderDesk();renderMarket();renderTV(previous);batchOptions();renderInventory();renderActivity();renderCharts();renderDecision();renderMobile();
  $('simulation-time').textContent=simTime(state.minute);$('mobile-demo-time').textContent=simTime(state.minute);$('mobile-day-slider').value=state.minute;$('day-slider').value=state.minute;
  $('exchange-slider').value=state.minute;$('exchange-slider').setAttribute('aria-valuetext',simTime(state.minute));$('exchange-playback-time').textContent=simTime(state.minute);$('exchange-forward').disabled=state.minute>=hoursFor(state).close;$('exchange-speed').value=settingsFor(state).traffic.speed;
+ $('day-forward').disabled=$('exchange-forward').disabled;$('day-speed').value=$('exchange-speed').value;
+ $('impact-forward').disabled=$('exchange-forward').disabled;$('impact-speed').value=$('exchange-speed').value;
  updatePlayback();caseScene?.setState(state);
 }
 function syncLatest(){
@@ -252,7 +259,7 @@ function renderHours(){
  const {open,close}=hoursFor(state),signature=open+':'+close;
  if(signature!==hoursSignature&&!hoursDirty){$('hours-open').value=clockInput(open);$('hours-close').value=clockInput(close);hoursSignature=signature;}
  for(const id of ['day-slider','mobile-day-slider','exchange-slider','impact-slider']){$(id).min=open;$(id).max=close;}
- $('timeline-labels').innerHTML='<span>'+simTime(open)+' · Open</span><span>'+simTime(close-120)+' · Review</span><span>'+simTime(close)+' · Close</span>';
+ $('timeline-labels').innerHTML='<span>'+simTime(open)+'</span><span>'+simTime(close)+'</span>';
  $('mobile-hours').textContent='Cafe hours · '+simTime(open)+'–'+simTime(close);
 }
 function renderSustainability(){

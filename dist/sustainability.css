@@ -1,13 +1,8 @@
 .sustainability-view{max-width:1440px;padding:36px 4% 20px}
-.sustainability-hero{display:grid;grid-template-columns:1fr 1fr;align-items:end;gap:40px;max-width:none;margin-bottom:26px}
-.sustainability-hero h1{font-size:clamp(36px,3.4vw,52px);line-height:1.12;margin:12px 0 0}
-.sustainability-hero>p{font-size:16px;line-height:1.7;margin:0;max-width:570px}
-.impact-playback{display:flex;align-items:center;gap:28px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 22px}
-.impact-buttons{display:flex;gap:8px}.impact-buttons button{min-width:96px;height:42px;padding:8px 16px}
-.impact-timeline{flex:1;min-width:150px}.impact-timeline label,.impact-timeline>div{display:flex;justify-content:space-between;align-items:center;gap:10px}
-.impact-timeline label{font-size:12px;color:var(--muted)}.impact-timeline label strong{color:var(--navy);font-size:15px;font-variant-numeric:tabular-nums}
-.impact-timeline input{width:100%;height:18px;margin:5px 0;display:block}.impact-timeline>div{font-size:10px;color:var(--muted)}
-.impact-playback>a,.impact-panel-heading>a{font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
+.sustainability-hero{display:block;margin-bottom:22px}
+.sustainability-hero h1{font-size:clamp(28px,3.2vw,46px);line-height:1.15;margin:10px 0 0;white-space:nowrap}
+
+.impact-panel-heading>a{font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
 .impact-demo-note{font-size:12px;color:var(--muted);margin:10px 0 24px;line-height:1.6}
 .impact-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
 .impact-metrics article{background:var(--navy);color:white;border-radius:12px;padding:22px 24px;min-width:0}
@@ -30,6 +25,6 @@
 .impact-offer-table tbody th{font-size:14px;color:var(--navy)}
 .impact-food{display:flex;align-items:center;gap:12px;white-space:normal;min-width:180px}.impact-food img{width:46px;height:46px;border-radius:6px;object-fit:cover}.impact-food small{display:block;font-size:10px;color:var(--muted);letter-spacing:1px;font-weight:500;margin-top:4px}
 .impact-offer-table .impact-empty{font-weight:400;white-space:normal;color:var(--muted);padding:28px 0}
-.impact-context{display:grid;grid-template-columns:1fr 1fr;gap:50px;padding:34px 0;border-top:1px solid var(--line);margin-top:34px}.impact-context h2{font-size:25px;margin:10px 0 18px}.impact-context p{color:var(--muted);font-size:14px;line-height:1.8;margin:0 0 16px}.impact-context a{font-size:13px;font-weight:600}.impact-context .eyebrow{font-size:10px}
-@media(max-width:900px){.impact-playback{flex-wrap:wrap;gap:16px}.impact-playback>a{margin-left:auto}.impact-metrics{grid-template-columns:repeat(2,1fr)}.impact-panels{grid-template-columns:1fr}.sustainability-hero{gap:20px}.impact-context{gap:28px}}
-@media(max-width:600px){.sustainability-view{padding:26px 18px}.sustainability-hero,.impact-context{grid-template-columns:1fr}.sustainability-hero h1{font-size:34px}.sustainability-hero>p{font-size:14px}.impact-playback{padding:16px}.impact-timeline{flex-basis:100%;order:2}.impact-playback>a{font-size:11px}.impact-buttons button{min-width:70px;font-size:12px}.impact-metrics{gap:10px}.impact-metrics article{padding:18px 14px}.impact-metrics article>span{font-size:11px}.impact-metrics strong{font-size:30px}.impact-panel{padding:18px}.impact-panel h2{font-size:19px}.impact-panel-heading{flex-wrap:wrap}.impact-legend{gap:14px}.impact-legend>div{font-size:11px}.impact-context{padding-top:24px}.impact-food{font-size:12px}}
+.impact-context{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));column-gap:40px;row-gap:16px;padding:28px 0;border-top:1px solid var(--line);margin-top:28px}.impact-context>div{display:grid;grid-row:span 5;grid-template-rows:subgrid;min-width:0}.impact-context h2{font-size:23px;line-height:1.3;margin:0}.impact-context p{color:var(--muted);font-size:14px;line-height:1.8;margin:0;overflow-wrap:anywhere}.impact-context a{font-size:13px;font-weight:600;justify-self:start}.impact-context .eyebrow{font-size:10px}
+@media(max-width:900px){.impact-metrics{grid-template-columns:repeat(2,1fr)}.impact-panels{grid-template-columns:1fr}.impact-context{column-gap:28px}}
+@media(max-width:600px){.sustainability-view{padding:22px 18px}.sustainability-hero h1{font-size:28px;white-space:normal}.impact-metrics{gap:10px}.impact-metrics article{padding:18px 14px}.impact-metrics article>span{font-size:11px}.impact-metrics strong{font-size:30px}.impact-panel{padding:18px}.impact-panel h2{font-size:19px}.impact-panel-heading{flex-wrap:wrap}.impact-legend{gap:14px}.impact-legend>div{font-size:11px}.impact-context{grid-template-columns:1fr;padding-top:24px;row-gap:20px}.impact-context>div{display:block;grid-row:auto}.impact-context h2{margin:10px 0 16px}.impact-context p{margin:0 0 16px}.impact-food{font-size:12px}}
