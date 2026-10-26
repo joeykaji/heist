@@ -53,7 +53,7 @@ test('custom rush jumps to its start and attempts configured arrivals across dur
 test('configured pairing buys the selected foods at confirmed prices and announcement ends cleanly',()=>{
  const cfg=defaultSettings();cfg.deal={kind:'combo',title:'Morning Pair',duration:20,at:690,category:'Bagels',ids:['sesame','banana']};
  const s=triggerEvent(initialState('opening',cfg),'combo'),c=comboView(s);assert.deepEqual(c.products.map(p=>p.id),['sesame','banana']);assert.equal(c.total,634);
- const bought=buyCombo(s);assert.equal(bought.sold,2);assert.equal(bought.revenue,634);assert.equal(productView(bought,'sesame').quantity,23);const ended=endDeal(bought);assert.equal(comboView(ended).active,false);assert.equal(ended.revenue,634);
+ const bought=buyCombo(s);assert.equal(bought.sold,2);assert.equal(bought.revenue,634);assert.equal(productView(bought,'sesame').quantity,9);const ended=endDeal(bought);assert.equal(comboView(ended).active,false);assert.equal(ended.revenue,634);
 });
 
 test('custom plan replay remains deterministic and conserves food',()=>{
@@ -124,7 +124,7 @@ test('a mobile pairing counts two items but only one mobile order',()=>{
 test('version 4 migration preserves the current run while adopting readable labels and new traffic',()=>{
  const cfg=defaultSettings(),old=initialState('deals',cfg);old.version=4;delete old.orders;delete old.settings.foods;delete old.settings.traffic;delete old.settings.deal.at;for(const m of Object.values(old.settings.menu)){delete m.enabled;m.stock=8;}
  old.settings.menu.southwest.price=450;old.settings.rushes={breakfast:{at:480,orders:12,duration:30},lunch:{at:720,orders:20,duration:30},dinner:{at:1020,orders:12,duration:30}};
- const next=migrateState(old);assert.ok(validState(next));assert.equal(next.minute,old.minute);assert.equal(next.settings.menu.southwest.price,450);assert.equal(next.settings.menu.southwest.stock,24);assert.deepEqual(next.settings.traffic,{inPerson:12,mobile:8,speed:1});assert.equal(next.settings.rushes.closing.at,840);assert.match(next.batches[0].label,/SWRP · Batch 1/);assert.equal(next.batches[5].current_cents,old.batches[5].current_cents);
+ const next=migrateState(old);assert.ok(validState(next));assert.equal(next.minute,old.minute);assert.equal(next.settings.menu.southwest.price,450);assert.equal(next.settings.menu.southwest.stock,10);assert.deepEqual(next.settings.traffic,{inPerson:12,mobile:8,speed:1});assert.equal(next.settings.rushes.closing.at,840);assert.match(next.batches[0].label,/SWRP · Batch 1/);assert.equal(next.batches[5].current_cents,old.batches[5].current_cents);
 });
 
 test('version 5 adjusts old default traffic but preserves custom rates, stock and price history',()=>{

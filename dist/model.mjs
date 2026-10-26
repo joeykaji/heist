@@ -56,7 +56,7 @@ export function initialState(preset='deals',settings=null){
  const cfg=copy(settings||defaultSettings());
  let s={version:6,revision:0,minute,updatedAt:stamp(),surplusSold:0,sold:0,orders:{inPerson:0,mobile:0},revenue:0,discarded:0,transferred:0,retained:0,sequence:catalogFor(cfg).length,settings:cfg,preferences:{ticker:true},policy:policyFor(cfg),promotion:null,history:[],batches:catalogFor(cfg).map((p,i)=>batch(p,i,settings?settings.menu[p.id].stock:opening?cfg.menu[p.id].stock:6+i%3,minute,cfg.menu[p.id],close,cfg)),events:[{text:opening?(cfg.location?.name||'Connections Cafe')+' opens. Fresh stock at menu prices.':'Afternoon market opens. Three surplus offers confirmed.',kind:'status',at:minute}]};
  // Explicit fixture assumptions only; they are not evidence about the cafe.
- if(!settings){s.batches.find(b=>b.productId==='buffalo').protected_units=1;s.batches.find(b=>b.productId==='roast').buffer_units=1;s.batches.find(b=>b.productId==='southwest').reserved_units=1;}
+ if(!settings&&!opening){s.batches.find(b=>b.productId==='buffalo').protected_units=1;s.batches.find(b=>b.productId==='roast').buffer_units=1;s.batches.find(b=>b.productId==='southwest').reserved_units=1;}
  if(!opening)for(const b of s.batches){b.createdAt=open;b.priceEvents[0].at=open;}
  s.savings={cents:0,units:0,from:minute};
  s.history=[point(s)];
@@ -219,7 +219,7 @@ export function stepSimulation(source,minutes=5){
 export function snapshotAt(minute,settings=null){const {open,close}=(settings||defaultSettings()).hours;if(!Number.isInteger(minute)||minute<open||minute>close)throw new Error('Invalid time.');return stepSimulation(initialState('opening',settings),minute-open);}
 
 
-export function defaultSettings(){return {location:{...DEFAULT_LOCATION},pricing:pricingFor(),hours:{open:OPEN,close:CLOSE},foods:copy(CATALOG),menu:Object.fromEntries(CATALOG.map(p=>[p.id,{stock:24,price:p.base,floor:1,cost:20,enabled:true}])),traffic:{inPerson:12,mobile:8,speed:1},rushes:{breakfast:{at:480,multiplier:2,duration:60},lunch:{at:720,multiplier:2,duration:60},closing:{at:840,multiplier:1.5,duration:55}},deal:{kind:'combo',title:'Sandwich & Muffin Bundle',duration:30,at:690,category:'Pastries',ids:['buffalo','blueberry']}};}
+export function defaultSettings(){return {location:{...DEFAULT_LOCATION},pricing:pricingFor(),hours:{open:OPEN,close:CLOSE},foods:copy(CATALOG),menu:Object.fromEntries(CATALOG.map(p=>[p.id,{stock:10,price:p.base,floor:1,cost:20,enabled:true}])),traffic:{inPerson:12,mobile:8,speed:1},rushes:{breakfast:{at:480,multiplier:2,duration:60},lunch:{at:720,multiplier:2,duration:60},closing:{at:840,multiplier:1.5,duration:55}},deal:{kind:'combo',title:'Sandwich & Muffin Bundle',duration:30,at:690,category:'Pastries',ids:['buffalo','blueberry']}};}
 export const settingsFor=s=>s.settings||defaultSettings();
 export function pricingFor(settings){const defaults={reviewMinutes:30,maxDiscount:45,maxStep:5,contribution:25,feePercent:0,orderFee:0};return Object.fromEntries(Object.entries(defaults).map(([key,value])=>[key,settings?.pricing?.[key]??value]));}
 function policyFor(settings){const p=pricingFor(settings);return {...DEFAULT_POLICY,max_discount:String(p.maxDiscount/100),discounts:DEFAULT_POLICY.discounts.filter(d=>Number(d)<=p.maxDiscount/100),max_adjustment:p.maxStep/100};}
@@ -287,7 +287,7 @@ export function migrateState(legacy){
   if(!cfg||!Array.isArray(s.batches)||!Number.isInteger(s.minute))return null;
   cfg.hours=legacy.version===3?{open:480,close:1080}:cfg.hours;
   cfg.foods=copy(CATALOG);cfg.traffic=defaults.traffic;
-  for(const p of CATALOG){cfg.menu[p.id].enabled=true;if(cfg.menu[p.id].stock===8)cfg.menu[p.id].stock=24;}
+  for(const p of CATALOG){cfg.menu[p.id].enabled=true;if(cfg.menu[p.id].stock===8)cfg.menu[p.id].stock=defaults.menu[p.id].stock;}
   for(const type of ['breakfast','lunch']){const r=cfg.rushes[type],oldDefault=type==='breakfast'?12:20;cfg.rushes[type]={at:r.at,duration:r.orders===oldDefault?60:r.duration,multiplier:r.orders===oldDefault?2:Math.max(.1,Math.min(5,r.orders*60/r.duration/40))};}
   cfg.rushes.closing=defaults.rushes.closing;delete cfg.rushes.dinner;
   cfg.deal.at=defaults.deal.at;s.version=6;s.orders={inPerson:s.sold,mobile:0};

@@ -54,7 +54,7 @@ Cafe Desk organizes setup into five sections:
 
 Changes to the saved opening plan replay the day to the current simulated time. Moving the timeline also rebuilds the day from that plan; **Restart** returns to opening time and pauses playback. A fresh delivery creates a separate batch with its own pricing history.
 
-Default hours are **7:00 AM–3:00 PM**, with 12 in-person purchases and 8 mobile orders per normal hour. Breakfast and lunch use a 2× multiplier; Closing Rush begins at 2:00 PM with a 1.5× multiplier. These are configurable simulation inputs, not measured cafe demand. Actual simulated purchases require available stock.
+Default opening stock is **10 units per food**. Hours are **7:00 AM–3:00 PM**, with 12 in-person purchases and 8 mobile orders per normal hour. Breakfast and lunch use a 2× multiplier; Closing Rush begins at 2:00 PM with a 1.5× multiplier. These are configurable simulation inputs, not measured cafe demand. Actual simulated purchases require available stock.
 
 Food Bundles combine two items at their current prices. Market Crash announcements highlight price drops within the pricing rules. Offers appear across the displays and notification preview. Closing Rush is a traffic event, not an offer type.
 
