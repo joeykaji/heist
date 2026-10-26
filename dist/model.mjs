@@ -46,7 +46,7 @@ export function productView(s,id){
 }
 export function trafficAt(s,minute=s.minute){const cfg=settingsFor(s),{open,close}=hoursFor(s),rush=Object.values(cfg.rushes).find(r=>r.at>=open&&r.at+r.duration<=close-5&&minute>=r.at&&minute<r.at+r.duration);const multiplier=rush?.multiplier??1;return {inPerson:cfg.traffic.inPerson*multiplier,mobile:cfg.traffic.mobile*multiplier};}
 export function demand(s){if(s.minute>=hoursFor(s).close-5)return 0;const r=trafficAt(s);return r.inPerson+r.mobile;}
-function point(s){return {at:s.minute,stock:s.batches.reduce((n,b)=>n+offerAvailable(s,b),0),demand:demand(s)};}
+function point(s){return {at:s.minute,stock:s.batches.reduce((n,b)=>n+offerAvailable(s,b),0),demand:demand(s),sold:s.sold,savings:s.savings?.cents??0};}
 function finish(s){s.revision++;s.updatedAt=stamp();const p=point(s);if(s.history.at(-1)?.at===s.minute)s.history[s.history.length-1]=p;else s.history.push(p);s.history=s.history.slice(-601);return s;}
 function event(s,text,kind='status'){s.events.unshift({text,kind,at:s.minute});s.events=s.events.slice(0,40);}
 export function initialState(preset='deals',settings=null){
@@ -58,6 +58,7 @@ export function initialState(preset='deals',settings=null){
  // Explicit fixture assumptions only; they are not evidence about the cafe.
  if(!settings){s.batches.find(b=>b.productId==='buffalo').protected_units=1;s.batches.find(b=>b.productId==='roast').buffer_units=1;s.batches.find(b=>b.productId==='southwest').reserved_units=1;}
  if(!opening)for(const b of s.batches){b.createdAt=open;b.priceEvents[0].at=open;}
+ s.savings={cents:0,units:0,from:minute};
  s.history=[point(s)];
  if(!opening)for(const id of ['buffalo','chocolate','blueberry']){const b=s.batches.find(b=>b.productId===id);if(b)s=executeDemoDecision(s,b.id,evaluateBatch(s,b.id),true,true,'afternoon-'+b.id);}
  return s;
@@ -65,6 +66,7 @@ export function initialState(preset='deals',settings=null){
 export function validState(s){
  const {open,close}=hoursFor(s);
  if(!s||s.version!==6||!Number.isInteger(s.minute)||s.minute<open||s.minute>close||!Number.isInteger(s.revision)||s.revision<0||!Number.isFinite(Date.parse(s.updatedAt))||!Number.isInteger(s.sequence)||s.sequence<0||!s.policy||!s.preferences||typeof s.preferences.ticker!=='boolean'||!['sold','surplusSold','revenue','discarded','transferred','retained'].every(k=>Number.isSafeInteger(s[k])&&s[k]>=0)||s.surplusSold>s.sold||!s.orders||!['inPerson','mobile'].every(k=>Number.isSafeInteger(s.orders[k])&&s.orders[k]>=0)||s.orders.inPerson+s.orders.mobile>s.sold)return false;
+ if(s.savings&&(!['cents','units','from'].every(k=>Number.isSafeInteger(s.savings[k])&&s.savings[k]>=0)||s.savings.units>s.sold||s.savings.from>s.minute))return false;
  if(!Array.isArray(s.batches)||s.batches.length>500||new Set(s.batches.map(b=>b.id)).size!==s.batches.length)return false;
  try{
   validateSettings(s.settings);
@@ -114,10 +116,16 @@ export function repriceDynamic(source, excluded=[]) {
  }
  return s;
 }
+// Keep the paid price at purchase time; repricing later must not rewrite savings.
+export function recordSale(s,b,price,quantity=1){
+ s.savings??={cents:0,units:0,from:s.minute};
+ s.savings.cents+=Math.max(0,b.original_cents-price)*quantity;s.savings.units+=quantity;
+ s.sold+=quantity;s.revenue+=price*quantity;if(price<b.original_cents)s.surplusSold+=quantity;
+}
 export function sell(source,id,channel='inPerson',countOrder=true){
  if(!['inPerson','mobile'].includes(channel))throw new Error('Unknown purchase channel.');
  const s=copy(source),p=productView(s,id);if(!p.quantity)throw new Error('No available offer stock.');
- const b=s.batches.find(b=>b.id===p.batchId);b.physical_units--;b.observedAt=s.minute;s.sold++;if(countOrder)s.orders[channel]++;s.revenue+=p.price;if(p.saving>0)s.surplusSold++;
+ const b=s.batches.find(b=>b.id===p.batchId);b.physical_units--;b.observedAt=s.minute;if(countOrder)s.orders[channel]++;recordSale(s,b,p.price);
  if(rawAvailable(b)===0)b.terminalAt=s.minute;
  event(s,(channel==='mobile'?'Mobile Order':'In-Person Purchase')+' · '+p.name+' · '+money(p.price)+'.','sale');return finish(s);
 }

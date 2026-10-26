@@ -3,6 +3,7 @@ import {chartSamples} from './price-history.mjs';
 import {createExchange,sparkline,tickerMarkup} from './exchange-tv.mjs';
 import {BLANK_FOOD_IMAGE,pricingFor,trafficPlan,catalogFor,RUSH_NAMES,trafficAt,applyPlan,CATALOG,CATEGORIES,hoursFor,migrateState,money,simTime,initialState,validState,productView,offerAvailable,rawAvailable,sell,restock,evaluateBatch,executeDemoDecision,observeStock,setAllocations,triggerEvent,comboView,buyCombo,basketQuote,applyTicker,stepSimulation,snapshotAt,demand,settingsFor,updateSettings,startPlannedDay,receiveStock,recountBatch,jumpToRush,endDeal} from './model.mjs';
 import {createCase} from './case.mjs';
+import {sustainabilityReport} from './sustainability.mjs';
 const $=id=>document.getElementById(id),escape=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const params=new URLSearchParams(location.search),displayOnly=['1','exchange'].includes(params.get('display'));
 let view=displayOnly?(params.get('display')==='exchange'?'exchange':'tv'):params.get('view')||'home',state,playing=false,timer=null,storageAvailable=true,page=0,tvCategory='all',selectedBatch='batch-5',decision=null,basket={},dealsOnly=false,caseScene=null;
@@ -140,10 +141,11 @@ $('fail-price').onclick=()=>{const d=decision;if(d)change(s=>executeDemoDecision
 $('save-allocations').onclick=()=>change(s=>setAllocations(s,$('decision-batch').value,Number($('reserved').value),Number($('protected').value),Number($('buffer').value))).then(()=>{decision=null;renderDecision();});
 
 function updatePlayback(){
- for(const id of ['pause-day','mobile-pause','exchange-play','launch-market']){$(id).textContent=playing?'Pause':'Play';$(id).disabled=!playing&&state.minute>=hoursFor(state).close;}
+ for(const id of ['pause-day','mobile-pause','exchange-play','launch-market','impact-play']){$(id).textContent=playing?'Pause':'Play';$(id).disabled=!playing&&state.minute>=hoursFor(state).close;}
  if(!playing&&marketSelectionPending&&$('market-event').selectedOptions[0]?.disabled)$('launch-market').disabled=true;
  for(const id of ['run-day','mobile-replay','exchange-replay'])$(id).textContent='Restart';
  $('exchange-playback-status').textContent=playing?'Playing':state.minute>=hoursFor(state).close?'Day Complete':'Paused';
+ $('impact-status').textContent=$('exchange-playback-status').textContent;
 }
 function pause(){clearInterval(timer);timer=null;playing=false;updatePlayback();}
 function start(){if(state.minute>=hoursFor(state).close)return;clearInterval(timer);playing=true;updatePlayback();timer=setInterval(async()=>{await change(s=>stepSimulation(s,5),{stop:false});if(state.minute>=hoursFor(state).close)pause();},60000/((hoursFor(state).close-hoursFor(state).open)/5)/settingsFor(state).traffic.speed);}
@@ -156,6 +158,9 @@ $('exchange-replay').onclick=$('run-day').onclick;
 $('exchange-forward').onclick=()=>change(s=>stepSimulation(s,5));
 $('day-slider').oninput=e=>{const minute=Number(e.target.value);basket={};decision=null;change(s=>snapshotAt(minute,settingsFor(s)));};
 $('exchange-slider').oninput=$('day-slider').oninput;
+$('impact-slider').oninput=$('day-slider').oninput;
+$('impact-play').onclick=$('pause-day').onclick;
+$('impact-restart').onclick=$('run-day').onclick;
 function renderMarket(){
  const cfg=settingsFor(state),{open,close}=hoursFor(state),choice=$('market-event').value;
  for(const option of $('market-event').options){const r=cfg.rushes[option.value];if(r){option.textContent=RUSH_NAMES[option.value]+' · '+simTime(r.at);option.disabled=r.at<open||r.at+r.duration>close-5;}else option.textContent=({crash:'Market Crash',combo:cfg.deal.kind==='combo'?cfg.deal.title:'Food Bundle',rescue:'Closing Rush'})[option.value];}
@@ -245,12 +250,30 @@ function renderHours(){
  $('exchange-open').textContent=simTime(hoursFor(state).open);$('exchange-close').textContent=simTime(hoursFor(state).close);
  const {open,close}=hoursFor(state),signature=open+':'+close;
  if(signature!==hoursSignature&&!hoursDirty){$('hours-open').value=clockInput(open);$('hours-close').value=clockInput(close);hoursSignature=signature;}
- for(const id of ['day-slider','mobile-day-slider','exchange-slider']){$(id).min=open;$(id).max=close;}
+ for(const id of ['day-slider','mobile-day-slider','exchange-slider','impact-slider']){$(id).min=open;$(id).max=close;}
  $('timeline-labels').innerHTML='<span>'+simTime(open)+' · Open</span><span>'+simTime(close-120)+' · Review</span><span>'+simTime(close)+' · Close</span>';
  $('mobile-hours').textContent='Cafe hours · '+simTime(open)+'–'+simTime(close);
 }
 function renderSustainability(){
- $('sustainability-counts').innerHTML=[['Surplus items sold',state.surplusSold],['Transferred',state.transferred],['Retained at close',state.retained],['Discarded',state.discarded]].map(([label,value])=>'<div><strong>'+value+'</strong><span>'+label+'</span></div>').join('');
+ const r=sustainabilityReport(state),{open,close}=hoursFor(state);
+ $('impact-time').textContent=simTime(state.minute);$('impact-slider').value=state.minute;$('impact-slider').setAttribute('aria-valuetext',simTime(state.minute));$('impact-open').textContent=simTime(open);$('impact-close').textContent=simTime(close);
+ $('sustainability-counts').innerHTML=[
+  ['Discounted Foods Sold',state.surplusSold,'Purchased below regular price'],
+  [r.savingsComplete?'Customer Savings':'Tracked Savings',money(r.savings),'Based on prices paid at purchase'],
+  ['Food Sold',pct(r.sellThrough)+'%',state.sold+' of '+r.accounted+' accounted items'],
+  [r.closed?'Unsold at Close':'Still in the Case',r.closed?state.retained+state.transferred+state.discarded:r.remaining,r.closed?'See destinations below':'Includes reserved & protected stock']
+ ].map(([label,value,note])=>'<article><span>'+label+'</span><strong>'+value+'</strong><p>'+note+'</p></article>').join('');
+ $('impact-total').textContent=r.accounted+' Items';
+ $('impact-flow-bar').innerHTML=r.outcomes.filter(o=>o.count).map(o=>'<span class="outcome-'+o.key+'" style="flex-grow:'+o.count+'" title="'+o.label+': '+o.count+'"></span>').join('');
+ $('impact-flow-bar').setAttribute('aria-label',r.outcomes.map(o=>o.label+': '+o.count).join(', '));
+ $('impact-legend').innerHTML=r.outcomes.map(o=>'<div><dt><i class="outcome-'+o.key+'" aria-hidden="true"></i>'+o.label+'</dt><dd>'+o.count+'</dd></div>').join('');
+ $('impact-outcome-note').textContent=(r.closed?'Day complete. Unsold stock has moved to the closing ledger.':'Stock received or recounted in Cafe Desk updates this balance.')+' Food sold is sales divided by all accounted items. Retained food is not automatically discarded.';
+ $('impact-chart-value').textContent=money(r.savings);$('impact-revenue').textContent=money(state.revenue);
+ const points=state.history.filter(p=>Number.isFinite(p.savings)).map(p=>({at:p.at,value:p.savings}));
+ chart('impact-savings-chart',points,Math.max(100,Math.ceil(r.savings/100)*100),money,true);
+ $('impact-savings-note').textContent=r.savingsComplete?'Savings add up from actual simulated purchases, including mobile orders and bundles. Later price changes do not alter earlier savings.':'This saved day predates savings tracking. Only new purchases are included here. Restart for a complete day’s savings.';
+ $('impact-pricing-note').textContent='Prices are reviewed every '+r.pricing.reviewMinutes+' minutes, with up to '+r.pricing.maxDiscount+'% off and cafe-set minimums. '+(r.offers.length?r.offers.length+' foods currently have a price drop; the largest drops are shown below.':'No discounted food is available at this moment. Play the day to follow price changes and purchases.');
+ $('impact-offers').innerHTML=r.offers.length?r.offers.slice(0,5).map(p=>'<tr><th scope="row"><span class="impact-food"><img src="'+escape(p.image)+'" alt="" loading="lazy"><span>'+escape(p.name)+'<small>'+escape(p.symbol)+'</small></span></span></th><td>'+money(p.price)+'</td><td>↓ '+pct(p.discount)+'%</td><td>'+p.offerQuantity+'</td></tr>').join(''):'<tr><td colspan="4" class="impact-empty">'+(r.closed?'The cafe day is complete. Restart to explore another day.':'As prices change, available surplus offers will appear here.')+'</td></tr>';
 }
 $('hours-form').oninput=()=>{hoursDirty=true;$('hours-status').textContent='Unsaved hours';};
 $('hours-form').onsubmit=e=>{e.preventDefault();change(s=>{const cfg=structuredClone(settingsFor(s));cfg.hours={open:minuteInput($('hours-open').value),close:minuteInput($('hours-close').value)};const next=applyPlan(s,cfg);hoursDirty=false;decision=null;basket={};$('hours-status').textContent='Hours Applied';toast('Cafe hours updated on every screen.');return next;});};

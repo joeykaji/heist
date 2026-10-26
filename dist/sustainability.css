@@ -1,0 +1,35 @@
+.sustainability-view{max-width:1440px;padding:36px 4% 20px}
+.sustainability-hero{display:grid;grid-template-columns:1fr 1fr;align-items:end;gap:40px;max-width:none;margin-bottom:26px}
+.sustainability-hero h1{font-size:clamp(36px,3.4vw,52px);line-height:1.12;margin:12px 0 0}
+.sustainability-hero>p{font-size:16px;line-height:1.7;margin:0;max-width:570px}
+.impact-playback{display:flex;align-items:center;gap:28px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 22px}
+.impact-buttons{display:flex;gap:8px}.impact-buttons button{min-width:96px;height:42px;padding:8px 16px}
+.impact-timeline{flex:1;min-width:150px}.impact-timeline label,.impact-timeline>div{display:flex;justify-content:space-between;align-items:center;gap:10px}
+.impact-timeline label{font-size:12px;color:var(--muted)}.impact-timeline label strong{color:var(--navy);font-size:15px;font-variant-numeric:tabular-nums}
+.impact-timeline input{width:100%;height:18px;margin:5px 0;display:block}.impact-timeline>div{font-size:10px;color:var(--muted)}
+.impact-playback>a,.impact-panel-heading>a{font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap}
+.impact-demo-note{font-size:12px;color:var(--muted);margin:10px 0 24px;line-height:1.6}
+.impact-metrics{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.impact-metrics article{background:var(--navy);color:white;border-radius:12px;padding:22px 24px;min-width:0}
+.impact-metrics article>span{font-size:13px;color:#d8e4eb}.impact-metrics strong{display:block;font-size:clamp(30px,3vw,42px);line-height:1.3;color:var(--gold);margin:10px 0 6px;font-variant-numeric:tabular-nums}
+.impact-metrics p{font-size:11px;line-height:1.5;color:#c5d4de;margin:0}
+.impact-panels{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.impact-panel{background:#fff;border:1px solid var(--line);border-radius:12px;padding:24px;min-width:0}
+.impact-panel-heading{display:flex;align-items:center;justify-content:space-between;gap:16px;margin-bottom:20px}
+.impact-panel .eyebrow{font-size:10px;letter-spacing:1.5px}.impact-panel h2{font-size:22px;line-height:1.3;margin:7px 0 0}
+.impact-panel-heading>strong{font-size:17px;white-space:nowrap;font-variant-numeric:tabular-nums}
+.impact-flow-bar{display:flex;gap:3px;min-height:26px;overflow:hidden;border-radius:5px;background:#f1f4f6;margin-bottom:20px}
+.impact-flow-bar span{min-width:3px;flex-basis:0}.outcome-discounted{background:var(--gold)}.outcome-regular{background:var(--navy)}.outcome-remaining{background:#d7e2ea}.outcome-transferred{background:#5e91b1}.outcome-retained{background:#b5a16e}.outcome-discarded{background:#647381}
+.impact-legend{display:grid;grid-template-columns:1fr 1fr;gap:14px 24px;margin:0 0 20px}
+.impact-legend>div{display:flex;justify-content:space-between;align-items:center;gap:12px;font-size:12px}.impact-legend dt{display:flex;align-items:center;gap:8px}.impact-legend i{width:9px;height:9px;display:block;border-radius:2px;flex-shrink:0}.impact-legend dd{margin:0;font-weight:700;font-variant-numeric:tabular-nums}
+.impact-note{color:var(--muted);font-size:12px;line-height:1.65;margin:14px 0 0}
+#impact-savings-chart{display:block;width:100%;height:auto;max-height:170px;overflow:visible}#impact-savings-chart text{font-family:'DM Sans',sans-serif;font-size:9px;fill:var(--muted)}
+.impact-revenue{border-top:1px solid var(--line);display:flex;justify-content:space-between;gap:16px;padding-top:12px;margin-top:12px;font-size:13px}.impact-revenue strong{font-variant-numeric:tabular-nums}
+.impact-pricing{margin-top:20px}.impact-pricing .impact-panel-heading{margin-bottom:4px}.impact-offer-table{overflow-x:auto;margin-top:14px}
+.impact-offer-table table{border-collapse:collapse;width:100%;font-size:14px}.impact-offer-table th,.impact-offer-table td{padding:12px 0;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}.impact-offer-table th:first-child,.impact-offer-table td:first-child{text-align:left}.impact-offer-table thead th{font-size:11px;font-weight:500;color:var(--muted);padding:10px 0}.impact-offer-table tbody td{font-weight:700;font-variant-numeric:tabular-nums}.impact-offer-table td+td,.impact-offer-table th+th{padding-left:22px}.impact-offer-table tr:last-child>*{border-bottom:0}
+.impact-offer-table tbody th{font-size:14px;color:var(--navy)}
+.impact-food{display:flex;align-items:center;gap:12px;white-space:normal;min-width:180px}.impact-food img{width:46px;height:46px;border-radius:6px;object-fit:cover}.impact-food small{display:block;font-size:10px;color:var(--muted);letter-spacing:1px;font-weight:500;margin-top:4px}
+.impact-offer-table .impact-empty{font-weight:400;white-space:normal;color:var(--muted);padding:28px 0}
+.impact-context{display:grid;grid-template-columns:1fr 1fr;gap:50px;padding:34px 0;border-top:1px solid var(--line);margin-top:34px}.impact-context h2{font-size:25px;margin:10px 0 18px}.impact-context p{color:var(--muted);font-size:14px;line-height:1.8;margin:0 0 16px}.impact-context a{font-size:13px;font-weight:600}.impact-context .eyebrow{font-size:10px}
+@media(max-width:900px){.impact-playback{flex-wrap:wrap;gap:16px}.impact-playback>a{margin-left:auto}.impact-metrics{grid-template-columns:repeat(2,1fr)}.impact-panels{grid-template-columns:1fr}.sustainability-hero{gap:20px}.impact-context{gap:28px}}
+@media(max-width:600px){.sustainability-view{padding:26px 18px}.sustainability-hero,.impact-context{grid-template-columns:1fr}.sustainability-hero h1{font-size:34px}.sustainability-hero>p{font-size:14px}.impact-playback{padding:16px}.impact-timeline{flex-basis:100%;order:2}.impact-playback>a{font-size:11px}.impact-buttons button{min-width:70px;font-size:12px}.impact-metrics{gap:10px}.impact-metrics article{padding:18px 14px}.impact-metrics article>span{font-size:11px}.impact-metrics strong{font-size:30px}.impact-panel{padding:18px}.impact-panel h2{font-size:19px}.impact-panel-heading{flex-wrap:wrap}.impact-legend{gap:14px}.impact-legend>div{font-size:11px}.impact-context{padding-top:24px}.impact-food{font-size:12px}}

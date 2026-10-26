@@ -1,7 +1,7 @@
 import {randomUUID, createHash} from 'node:crypto';
 import {mkdir, readFile, writeFile, rename} from 'node:fs/promises';
 import {dirname} from 'node:path';
-import {initialState, validState, migrateState, CATALOG, evaluateBatch, executeDemoDecision, offerAvailable, rawAvailable, restock, recountBatch, setAllocations, hoursFor, repriceDynamic} from '../../dist/model.mjs';
+import {initialState, validState, migrateState, CATALOG, evaluateBatch, executeDemoDecision, offerAvailable, rawAvailable, restock, recountBatch, setAllocations, hoursFor, repriceDynamic, recordSale} from '../../dist/model.mjs';
 export class CommandError extends Error { constructor(message,status=400){super(message);this.status=status;} }
 const assert=(ok,message,status=400)=>{if(!ok)throw new CommandError(message,status);};
 const integer=(n,min=0,max=Number.MAX_SAFE_INTEGER)=>Number.isSafeInteger(n)&&n>=min&&n<=max;
@@ -60,7 +60,7 @@ export class Session {
  delete s.pending[b.id];break;}
  case 'purchase': {const b=batch(s,p.offer);assert(integer(p.quantity,1,20),'Choose 1–20 units');assert(p.checkoutVersion===b.checkoutVersion,'Price changed; review the fresh offer',409);assert(available(s,b)>=p.quantity,'Offer unavailable or insufficient stock',409);
  b.reserved_units+=p.quantity;const order={id:c.id,batchId:b.id,offerId:b.offerId,quantity:p.quantity,priceCents:b.current_cents,checkoutVersion:b.checkoutVersion,status:'accepted',acceptedAt:s.model.minute};s.orders.push(order);assert(s.orders.length<=1000,'Reset the demo before creating more orders');result=order;log(s,'order','Accepted '+p.quantity+' × '+CATALOG.find(x=>x.id===b.productId).name,b.offerId);break;}
- case 'fulfill': {const o=s.orders.find(o=>o.id===p.order);assert(o&&o.status==='accepted','Order is not awaiting fulfillment');const b=batch(s,o.batchId);assert(s.model.minute<b.cutoff,'Fulfillment deadline reached');b.physical_units-=o.quantity;b.reserved_units-=o.quantity;o.status='fulfilled';o.fulfilledAt=s.model.minute;s.model.sold+=o.quantity;s.model.revenue+=o.quantity*o.priceCents;if(o.priceCents<b.original_cents)s.model.surplusSold+=o.quantity;log(s,'fulfillment','Order fulfilled at its accepted price',b.offerId);break;}
+ case 'fulfill': {const o=s.orders.find(o=>o.id===p.order);assert(o&&o.status==='accepted','Order is not awaiting fulfillment');const b=batch(s,o.batchId);assert(s.model.minute<b.cutoff,'Fulfillment deadline reached');b.physical_units-=o.quantity;b.reserved_units-=o.quantity;o.status='fulfilled';o.fulfilledAt=s.model.minute;recordSale(s.model,b,o.priceCents,o.quantity);log(s,'fulfillment','Order fulfilled at its accepted price',b.offerId);break;}
  default: throw new CommandError('Unknown command');
  }
  s.revision++;s.model.updatedAt=new Date().toISOString();assert(validState(s.model),'Update failed model validation');s.operations[c.id]={digest,result};assert(Object.keys(s.operations).length<=10000,'Reset the demo to clear the operation journal');await this.persist(s);this.state=s;for(const fn of this.listeners){try{fn(this.get());}catch{}}return {snapshot:this.get(),result};
