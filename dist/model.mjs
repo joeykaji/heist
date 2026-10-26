@@ -160,7 +160,7 @@ export function triggerEvent(source,kind,options={}){
  return s;
 }
 export function comboView(s){const products=(s.promotion?.ids||settingsFor(s).deal.ids).map(id=>productView(s,id));return {active:s.promotion?.kind==='combo'&&s.promotion.until>s.minute,available:products.every(p=>p.quantity>0),products,total:products.reduce((n,p)=>n+p.price,0),regular:products.reduce((n,p)=>n+p.base,0)};}
-export function buyCombo(source){const c=comboView(source);if(!c.active||!c.available)throw new Error('This pairing is unavailable.');return buyBasket(source,Object.fromEntries(c.products.map(p=>[p.id,1])));}
+export function buyCombo(source){const c=comboView(source);if(!c.active||!c.available)throw new Error('This bundle is unavailable.');return buyBasket(source,Object.fromEntries(c.products.map(p=>[p.id,1])));}
 export function basketQuote(source,basket){let s=source,total=0,first=true;for(const [id,n] of Object.entries(basket)){if(!Number.isInteger(n)||n<1||n>50||productView(s,id).quantity<n)throw new Error('Stock changed. Review your basket.');for(let i=0;i<n;i++){total+=productView(s,id).price;s=sell(s,id,'mobile',first);first=false;}}return {total,state:s};}
 export function buyBasket(source,basket){return basketQuote(source,basket).state;}
 export function applyTicker(source,enabled){const s=copy(source);s.preferences.ticker=!!enabled;return finish(s);}
@@ -211,11 +211,17 @@ export function stepSimulation(source,minutes=5){
 export function snapshotAt(minute,settings=null){const {open,close}=(settings||defaultSettings()).hours;if(!Number.isInteger(minute)||minute<open||minute>close)throw new Error('Invalid time.');return stepSimulation(initialState('opening',settings),minute-open);}
 
 
-export function defaultSettings(){return {location:{...DEFAULT_LOCATION},pricing:pricingFor(),hours:{open:OPEN,close:CLOSE},foods:copy(CATALOG),menu:Object.fromEntries(CATALOG.map(p=>[p.id,{stock:24,price:p.base,floor:1,cost:20,enabled:true}])),traffic:{inPerson:12,mobile:8,speed:1},rushes:{breakfast:{at:480,multiplier:2,duration:60},lunch:{at:720,multiplier:2,duration:60},closing:{at:840,multiplier:1.5,duration:55}},deal:{kind:'combo',title:'Sandwich & Muffin Pairing',duration:30,at:690,category:'Pastries',ids:['buffalo','blueberry']}};}
+export function defaultSettings(){return {location:{...DEFAULT_LOCATION},pricing:pricingFor(),hours:{open:OPEN,close:CLOSE},foods:copy(CATALOG),menu:Object.fromEntries(CATALOG.map(p=>[p.id,{stock:24,price:p.base,floor:1,cost:20,enabled:true}])),traffic:{inPerson:12,mobile:8,speed:1},rushes:{breakfast:{at:480,multiplier:2,duration:60},lunch:{at:720,multiplier:2,duration:60},closing:{at:840,multiplier:1.5,duration:55}},deal:{kind:'combo',title:'Sandwich & Muffin Bundle',duration:30,at:690,category:'Pastries',ids:['buffalo','blueberry']}};}
 export const settingsFor=s=>s.settings||defaultSettings();
 export function pricingFor(settings){const defaults={reviewMinutes:30,maxDiscount:45,maxStep:5,contribution:25,feePercent:0,orderFee:0};return Object.fromEntries(Object.entries(defaults).map(([key,value])=>[key,settings?.pricing?.[key]??value]));}
 function policyFor(settings){const p=pricingFor(settings);return {...DEFAULT_POLICY,max_discount:String(p.maxDiscount/100),discounts:DEFAULT_POLICY.discounts.filter(d=>Number(d)<=p.maxDiscount/100),max_adjustment:p.maxStep/100};}
 export function trafficPlan(s){const {open,close}=hoursFor(s);const times=new Set([open,close-5,close]);for(const r of Object.values(settingsFor(s).rushes)){if(r.at>=open&&r.at+r.duration<=close-5){times.add(r.at);times.add(r.at+r.duration);}}return [...times].sort((a,b)=>a-b).map(at=>({at,value:demand({...s,minute:at})}));}
+export const BLANK_FOOD_IMAGE='assets/food-placeholder.svg';
+export function validFoodImage(image){
+ if(typeof image!=='string'||image.length>2048)return false;
+ if(image===BLANK_FOOD_IMAGE||/^assets\/[a-z0-9-]+\.(webp|png)$/.test(image))return true;
+ try{const url=new URL(image);return url.protocol==='https:'&&!url.username&&!url.password&&!/[\s<>"']/.test(image);}catch{return false;}
+}
 export function validateSettings(c){
  if(!c||!c.menu||!c.rushes||!c.deal)throw new Error('Cafe settings are incomplete.');
  if(c.location)validateLocation(c.location);
@@ -223,7 +229,7 @@ export function validateSettings(c){
  const h=c.hours;if(!h||!Number.isInteger(h.open)||!Number.isInteger(h.close)||h.open<0||h.close>1439||h.close-h.open<120)throw new Error('Choose same-day hours at least two hours apart.');
  if(!Array.isArray(c.foods)||c.foods.length<2||c.foods.length>80||new Set(c.foods.map(p=>p.id)).size!==c.foods.length||new Set(c.foods.map(p=>p.symbol)).size!==c.foods.length)throw new Error('Use a unique ID and ticker for each food (2–80 foods).');
  for(const p of c.foods){
-  if(!/^[a-z0-9-]{1,50}$/.test(p.id)||typeof p.name!=='string'||!p.name.trim()||p.name.length>90||!/^[A-Z0-9]{3,6}$/.test(p.symbol)||!CATEGORIES.includes(p.category)||!['wrap','sandwich','bagel','croissant','muffin','danish','doughnut'].includes(p.kind)||typeof p.image!=='string'||!/^assets\/[a-z0-9-]+\.(webp|png)$/.test(p.image))throw new Error('Use a food name, a unique 3–6 letter ticker, and a menu category and photo.');
+  if(!/^[a-z0-9-]{1,50}$/.test(p.id)||typeof p.name!=='string'||!p.name.trim()||p.name.length>90||!/^[A-Z0-9]{3,6}$/.test(p.symbol)||!CATEGORIES.includes(p.category)||!['wrap','sandwich','bagel','croissant','muffin','danish','doughnut'].includes(p.kind)||!validFoodImage(p.image))throw new Error('Use a food name, a unique 3–6 letter ticker, and a category. Photos can be blank, a menu image, or an HTTPS image URL.');
   const m=c.menu[p.id];if(!m||!Number.isInteger(m.stock)||m.stock<0||m.stock>1000||!Number.isInteger(m.price)||m.price<1||m.price>10000||!Number.isInteger(m.floor)||m.floor<1||m.floor>m.price||!Number.isInteger(m.cost)||m.cost<0||m.cost>10000||typeof m.enabled!=='boolean')throw new Error(p.name+': enter stock 0–1,000, a positive price, and a minimum no higher than the price.');
  }
  const t=c.traffic;if(!t||!['inPerson','mobile'].every(k=>Number.isInteger(t[k])&&t[k]>=0&&t[k]<=200)||![.5,1,2].includes(t.speed))throw new Error('Enter 0–200 hourly purchases for each channel.');

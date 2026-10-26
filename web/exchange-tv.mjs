@@ -1,6 +1,12 @@
 import {chartSamples,hourlyPoints} from './price-history.mjs';
-import {catalogFor,productView,hoursFor,money,simTime,offerAvailable} from './model.mjs';
+import {catalogFor,productView,money,simTime,offerAvailable} from './model.mjs';
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+export function tickerMarkup(state){
+ return catalogFor(state).filter(p=>state.settings.menu[p.id].enabled).map(food=>{
+  const p=productView(state,food.id),drop=p.discount.toFixed(1).replace(/\.0$/,'');
+  return '<div class="ticker-item"><b class="ticker-symbol">'+esc(p.symbol)+'</b><span class="ticker-price">'+(p.quantity?money(p.price):'—')+'</span><span class="ticker-drop">'+(p.quantity?(p.saving?'↓ '+drop+'%':'0%'):'')+'</span></div>';
+ }).join('');
+}
 export function sparkline(batch,state){
  if(!batch)return '<span class="exchange-no-history">No active batch</span>';
  if(batch.closed||(batch.terminalAt!=null&&batch.terminalAt<=state.minute)||offerAvailable(state,batch)<=0)return ''; 
@@ -24,15 +30,12 @@ export function createExchange(){
  function update(state){current=state;page=Math.min(page,pageCount()-1);body.innerHTML=exchangeRows(state,page);
  document.getElementById('exchange-time').textContent=simTime(state.minute)+' ET';
  document.getElementById('exchange-page').textContent='PAGE '+(page+1)+' / '+pageCount();
- document.getElementById('exchange-news').textContent=state.events[0]?.text||'Taste more. Waste less. · Confirmed prices shared with Cafe Display and Cafe Desk.';
- document.getElementById('exchange-status').textContent=state.minute>=hoursFor(state).close-5?'OFFERS CLOSED':'CONFIRMED PRICES';
- document.getElementById('exchange-countdown').textContent=rotating?'NEXT PAGE '+remaining+'s':'ROTATION PAUSED';
  }
  function turn(delta){page=(page+delta+pageCount())%pageCount();remaining=15;if(current)update(current);}
  document.getElementById('exchange-prev').onclick=()=>turn(-1);
  document.getElementById('exchange-next').onclick=()=>turn(1);
  document.getElementById('exchange-rotate').onclick=e=>{rotating=!rotating;e.target.textContent=rotating?'Pause rotation':'Resume rotation';e.target.setAttribute('aria-pressed',String(!rotating));if(current)update(current);};
- document.getElementById('exchange-fullscreen').onclick=async()=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.getElementById('exchange-stage').requestFullscreen();}catch{document.getElementById('exchange-countdown').textContent='Use browser fullscreen';}};
- setInterval(()=>{if(!current||document.hidden||document.getElementById('view-exchange').hidden)return;if(rotating&&!--remaining)turn(1);document.getElementById('exchange-countdown').textContent=rotating?'NEXT PAGE '+remaining+'s':'ROTATION PAUSED';},1000);
+ document.getElementById('exchange-fullscreen').onclick=async e=>{try{if(document.fullscreenElement)await document.exitFullscreen();else await document.getElementById('exchange-stage').requestFullscreen();}catch{e.target.textContent='Use Browser Fullscreen';}};
+ setInterval(()=>{if(!current||document.hidden||document.getElementById('view-exchange').hidden)return;if(rotating&&!--remaining)turn(1);},1000);
  return {update};
 }

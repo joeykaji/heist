@@ -39,7 +39,7 @@ Menu data comes from the supplied screenshots; duplicate Muffin/Chocolate Croiss
 
 The 3D scene shows nine representative foods, up to eight individual models per food. Additional units are explicitly counted as back stock; the full menu inventory appears at the Cafe Desk. Sandwiches occupy the bottom and middle shelves; pastries occupy the top.
 
-Cafe Desk can add or hide foods, edit names, symbols, photos, prices and stock, and configure deals and arrivals. Applying an opening plan rebuilds the current simulated time from that plan; receiving food creates a separate fresh batch. Normal traffic defaults to 12 in-person and 8 mobile purchases per hour, with adjustable breakfast/lunch multipliers and a quieter Closing Rush at 2 PM. These are synthetic demo rates. Moving the slider rebuilds the day from the saved plan, and Restart returns to opening time paused. Pairing, bakery price-drop and Closing Rush announcements share confirmed prices across the displays and notification phone.
+Cafe Desk can add or hide foods, edit names, symbols, photos, prices and stock, and configure deals and arrivals. Applying an opening plan rebuilds the current simulated time from that plan; receiving food creates a separate fresh batch. Normal traffic defaults to 12 in-person and 8 mobile purchases per hour, with adjustable breakfast/lunch multipliers and a quieter Closing Rush at 2 PM. These are synthetic demo rates. Moving the slider rebuilds the day from the saved plan, and Restart returns to opening time paused. Food Bundle and Market Crash offers share confirmed prices across the displays and notification phone. Closing Rush remains a traffic event, rather than an offer type.
 
 ## Verification
 
@@ -65,12 +65,20 @@ The Market route includes a market-wide confirmed-price trend chart: toggle doll
 
 From the homepage, choose **Exchange Display** in the navigation or beside Cafe Display’s TV launch button. `/?view=exchange` provides preview, previous/next page, pause rotation, and fullscreen controls. `/?display=exchange` opens the clean 16:9 screen. Enabled Cafe Desk foods rotate across pages of twelve every 15 seconds; reduced-motion preference starts rotation paused.
 
-This secondary TV shares the browser-local Cafe Desk/playback state, just like Cafe Display and Mobile Display. It shows confirmed batch prices, crossed-out original prices, available quantities, and small trend charts. Each chart is relative to that batch’s regular price. Fresh stock never joins an old batch’s line. Its countdown is for page rotation, not a promised price change. The server-backed `/market` session remains separate.
+This secondary TV shares the browser-local Cafe Desk/playback state, just like Cafe Display and Mobile Display. Its table shows confirmed batch prices, crossed-out original prices, available quantities, and small trend charts. Each chart is relative to that batch’s regular price. Fresh stock never joins an old batch’s line. Cafe Display rotates pages of six foods every 15 seconds. Both displays share a compact scrolling ticker containing only symbols, current prices and percentage drops. The server-backed `/market` session remains separate.
 
 Exchange Display’s simulation preview includes Play/Pause, Restart, a five-minute step, speed, and a day scrubber. These use the same replay engine as Cafe Display and Mobile Display; seeking rebuilds from the saved opening plan. Playback controls are hidden in standalone TV (`?display=exchange`) and fullscreen presentation.
 
-## Location plans
+## Cafe Desk
 
-Cafe Desk supports up to 30 independent browser-local locations. Create a location from the default plan or copy the active plan, then set its name, address, hours, foods, stock, traffic, pricing rules, and deals. Each location has its own saved cafe day; links include its location ID. Existing Connections Cafe history is retained. Profiles are not synchronized between devices and are separate from the server-backed /staff session.
+Setup is grouped into five sections, in the order a cafe would use them:
+
+1. **Hours & Day** sets the opening and closing times.
+2. **Menu & Opening Stock** edits foods, symbols, images, quantities and prices. Choose a supplied photo, No Photo, or a custom HTTPS image URL. Added foods reach Cafe Display, Exchange Display and Mobile Display.
+3. **Traffic & Rushes** sets in-person/mobile purchase rates, rush windows and playback speed.
+4. **Pricing & Offers** combines pricing limits with Food Bundle and Market Crash announcements.
+5. **Live Stock & Review** combines deliveries, recounts and manual price review during the day.
+
+Location management is no longer shown. Existing saved location links and data remain compatible; new visits default to Connections Cafe. Browser profiles are not synchronized between devices and remain separate from the server-backed `/staff` session.
 
 Pricing Rules controls 15/30/60-minute reviews, a maximum discount up to 45%, a review step up to 5%, selling fees, and minimum contribution. Applying inventory, hours, traffic, or pricing replays the saved plan to the current time. Restart always pauses at opening. Default traffic is an illustrative 12 in-person and 8 mobile orders per hour, doubled at breakfast and lunch and increased to 1.5× for Closing Rush at 2 PM. The traffic graph shows the full planned schedule; actual purchases require available stock.
