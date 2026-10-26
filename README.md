@@ -147,6 +147,10 @@ The server also supports rejected publications, uncertain checkout outcomes, and
 
 ## Deployment
 
+GitHub Pages deployment is defined in [`.github/workflows/pages.yml`](.github/workflows/pages.yml). A repository administrator must first open **Settings → Pages** and select **GitHub Actions** as the source. Then run **Deploy MarketBite to GitHub Pages** from the Actions tab, or push a commit to `master`.
+
+After setup, each push to `master` builds and publishes `dist/` automatically. The public address will be **https://joeykaji.github.io/heist/**. View links use the same prefix, for example `https://joeykaji.github.io/heist/?view=tv`. The GitHub Pages deployment hosts the browser-local prototype only; each visitor has their own simulated cafe day.
+
 For a static deployment, run `npm run build` and serve `dist/`. The existing Sites configuration is stored in `.openai/hosting.json`.
 
 The shared server demo requires `server.mjs` and persistent storage; a static deployment alone cannot serve `/api` or the shared session. The local server binds to `127.0.0.1` and defaults to port 4173; `PORT` can override the port.
