@@ -1,6 +1,6 @@
 import {LOCATION_KEY,DEFAULT_LOCATION,stateKey,locationInfo,readLocations} from './locations.mjs';
 import {chartSamples} from './price-history.mjs';
-import {createExchange,sparkline,tickerMarkup} from './exchange-tv.mjs';
+import {createExchange,tickerMarkup} from './exchange-tv.mjs';
 import {BLANK_FOOD_IMAGE,pricingFor,trafficPlan,catalogFor,RUSH_NAMES,trafficAt,applyPlan,CATALOG,CATEGORIES,hoursFor,migrateState,money,simTime,initialState,validState,productView,offerAvailable,rawAvailable,sell,restock,evaluateBatch,executeDemoDecision,observeStock,setAllocations,triggerEvent,comboView,buyCombo,basketQuote,applyTicker,stepSimulation,snapshotAt,demand,settingsFor,updateSettings,startPlannedDay,receiveStock,recountBatch,jumpToRush,endDeal} from './model.mjs';
 import {createCase} from './case.mjs';
 import {sustainabilityReport} from './sustainability.mjs';
@@ -197,7 +197,7 @@ function renderMobile(){
  $('mobile-menu').innerHTML=matches.length?CATEGORIES.map((category,i)=>{
  const products=matches.filter(p=>p.category===category);if(!products.length)return '';
  return '<section class="mobile-menu-section" id="mobile-category-'+i+'"><h3>'+category+'</h3>'+products.map(product=>{
- const p=productView(state,product.id),priceBatch=state.batches.find(b=>b.id===p.batchId)??state.batches.filter(b=>b.productId===product.id).at(-1);return '<article class="mobile-card '+(!p.quantity?'unavailable':p.saving?'discounted':'')+'"><div class="mobile-card-info"><span class="mobile-symbol">'+escape(p.symbol)+'</span><h4>'+escape(p.name)+'</h4><div class="mobile-price">'+(p.quantity?money(p.price):'Unavailable')+(p.quantity&&p.saving?'<s>Was '+money(p.base)+'</s>':'')+'</div>'+(p.quantity&&p.saving?'<div class="mobile-drop">↓ '+pct(p.discount)+'% Off'+'</div>':'')+'<div class="mobile-quantity">'+(p.quantity?p.offerQuantity+' Available · '+simTime(p.priceAt):'Check back for fresh stock')+'</div><div class="mobile-item-history"><span>Price History</span>'+sparkline(priceBatch,state)+'</div></div><div class="mobile-thumb"><img src="'+escape(p.image)+'" alt="'+escape(p.name)+'" loading="lazy"><button class="mobile-add" data-add="'+p.id+'" aria-label="Add '+escape(p.name)+'" '+(!p.quantity?'disabled':'')+'>+</button></div></article>';
+ const p=productView(state,product.id);return '<article class="mobile-card '+(!p.quantity?'unavailable':p.saving?'discounted':'')+'"><div class="mobile-card-info"><span class="mobile-symbol">'+escape(p.symbol)+'</span><h4>'+escape(p.name)+'</h4><div class="mobile-price">'+(p.quantity?money(p.price):'Unavailable')+(p.quantity&&p.saving?'<s>Was '+money(p.base)+'</s>':'')+'</div>'+(p.quantity&&p.saving?'<div class="mobile-drop">↓ '+pct(p.discount)+'% Off'+'</div>':'')+'<div class="mobile-quantity">'+(p.quantity?p.offerQuantity+' Available · '+simTime(p.priceAt):'Check back for fresh stock')+'</div></div><div class="mobile-thumb"><img src="'+escape(p.image)+'" alt="'+escape(p.name)+'" loading="lazy"><button class="mobile-add" data-add="'+p.id+'" aria-label="Add '+escape(p.name)+'" '+(!p.quantity?'disabled':'')+'>+</button></div></article>';
  }).join('')+'</section>';
  }).join(''):'<p class="empty-menu">No matching foods. Try another search or clear the price-drop filter.</p>';
  renderBasket();

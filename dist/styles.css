@@ -106,14 +106,6 @@ button,.primary-button,.secondary-button{display:inline-flex;align-items:center;
 .campus-photo figcaption a{display:inline;margin:0;white-space:normal}
 @media(max-width:760px){.workspace-bar{height:auto;padding:16px 22px 12px}.workspace-bar nav a{font-size:11px;padding:9px 10px}.home-footer .leaf-wordmark-nav{width:145px}.team-list .team-person strong{font-size:16px}.team-list .team-meta,.team-list .team-link{font-size:13px}.home-footer{grid-template-columns:1fr;align-items:start;gap:12px}.home-footer>span:nth-child(2),.home-footer>span:last-child{justify-self:start;text-align:left}}
 
-/* Compact confirmed-price history for each mobile menu item. */
-.mobile-item-history{display:flex;align-items:center;gap:8px;margin-top:7px;max-width:190px;min-width:0}
-.mobile-item-history>span{font-size:8px;color:#71838f;white-space:nowrap}
-.mobile-item-history svg{display:block;width:90px;max-width:100%;height:28px;min-width:0;flex:0 1 90px}
-.mobile-item-history .exchange-grid{stroke:#dce5e9;stroke-width:1}
-.mobile-item-history .exchange-line{stroke:#20485f;stroke-width:2.5;stroke-linejoin:round}
-.mobile-item-history circle{fill:#20485f}
-.mobile-item-history .exchange-no-history{font-size:8px;color:#71838f;white-space:normal}
 
 
 
@@ -193,4 +185,7 @@ button,.primary-button,.secondary-button{display:inline-flex;align-items:center;
 #deal-desk>.deal-preview{margin:0 22px 22px}#shelf-desk{margin-top:24px}
 @media(max-width:600px){.traffic-form>.desk-grid{grid-template-columns:1fr}.control-heading .simulation-guide{font-size:14px}}
 
-.pricing-explanation>p{margin:16px 22px;font-size:14px;line-height:1.65}
+
+/* Align the wordmark lettering with the footer text; keep the leaf above it. */
+.home-footer .footer-brand{justify-self:start}
+.home-footer .leaf-wordmark-nav{transform:translateY(-4px)}
