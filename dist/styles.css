@@ -178,6 +178,6 @@ button,.primary-button,.secondary-button{display:inline-flex;align-items:center;
 
 /* Setup follows the saved plan; live adjustments follow playback. */
 .traffic-form>.desk-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.traffic-form>.desk-grid label:last-child{grid-column:auto}
-.simulation-guide{max-width:78ch;margin:10px 0 0;color:var(--muted);font-size:15px;line-height:1.65}.simulation-replay-note{margin:10px 0 24px;color:var(--muted);font-size:13px;line-height:1.6}
+.desk-intro p{max-width:none}.control-heading .simulation-guide{max-width:none;margin:10px 0 0;color:var(--muted);font-size:15px;line-height:1.65}
 #deal-desk>.deal-preview{margin:0 22px 22px}#shelf-desk{margin-top:24px}
-@media(max-width:600px){.traffic-form>.desk-grid{grid-template-columns:1fr}.simulation-guide{font-size:14px}}
+@media(max-width:600px){.traffic-form>.desk-grid{grid-template-columns:1fr}.control-heading .simulation-guide{font-size:14px}}
